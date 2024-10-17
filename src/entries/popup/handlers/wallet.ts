@@ -47,6 +47,8 @@ import {
 import { walletAction } from './walletAction';
 import { HARDWARE_WALLETS } from './walletVariables';
 
+import { getOperationsToTransferToken } from '../utils/orb';
+
 const signMessageByType = async (
   msgData: string | Bytes,
   address: Address,
@@ -92,6 +94,36 @@ export const signTransactionFromHW = async (
   } else if (vendor === 'Trezor') {
     return signTransactionFromTrezor(params);
   }
+};
+
+export const sendOrbyTransaction = async ({
+  clusterId,
+  standardizedTokenId,
+  amount,
+  recipient,
+  virtualNodeRpcUrl,
+}: {
+  clusterId: string;
+  standardizedTokenId: string;
+  amount: number;
+  recipient: { address: string; chainId: string };
+  virtualNodeRpcUrl: string;
+}): Promise<TransactionResponse> => {
+  const operationSet = await getOperationsToTransferToken({
+    virtualNodeRpcUrl,
+    clusterId,
+    standardizedTokenId,
+    amount,
+    recipient,
+  });
+
+  // NOTE: i'm not handling hardware wallets here, but we can add that later
+  const transactionResponse = await walletAction<TransactionResponse>(
+    'send_orby_transaction',
+    operationSet,
+  );
+
+  return deserializeBigNumbers(transactionResponse);
 };
 
 export const sendTransaction = async (

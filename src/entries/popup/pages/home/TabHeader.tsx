@@ -19,9 +19,11 @@ import SortDropdown from './NFTs/SortDropdown';
 
 export function TabHeader({
   activeTab,
+  balance,
 }: {
   activeTab: Tab;
   onSelectTab: (tab: Tab) => void;
+  balance: string;
 }) {
   const { hideAssetBalances } = useHideAssetBalancesStore();
   const { display: userAssetsBalanceDisplay, isLoading } =
@@ -52,10 +54,10 @@ export function TabHeader({
           userSelect="all"
           cursor="text"
         >
-          {userAssetsBalanceDisplay || ''}
+          {balance || ''}
         </Text>
       ),
-    [activeTab, currentCurrency, hideAssetBalances, userAssetsBalanceDisplay],
+    [activeTab, currentCurrency, hideAssetBalances, balance],
   );
 
   const tabTitle = useMemo(() => {

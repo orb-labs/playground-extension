@@ -74,7 +74,11 @@ import { Navbar } from '../../components/Navbar/Navbar';
 import { CursorTooltip } from '../../components/Tooltip/CursorTooltip';
 import { TransactionFee } from '../../components/TransactionFee/TransactionFee';
 import { isLedgerConnectionError } from '../../handlers/ledger';
-import { getWallet, sendTransaction } from '../../handlers/wallet';
+import {
+  getWallet,
+  sendOrbyTransaction,
+  sendTransaction,
+} from '../../handlers/wallet';
 import { useSendAsset } from '../../hooks/send/useSendAsset';
 import { useSendInputs } from '../../hooks/send/useSendInputs';
 import { useSendState } from '../../hooks/send/useSendState';
@@ -96,6 +100,14 @@ import { SendTokenInput } from './SendTokenInput';
 import { ToAddressInput } from './ToAddressInput';
 import { ValueInput } from './ValueInput';
 
+import {
+  useCreateClusterId,
+  usePortfolio,
+  usePortfolioBalance,
+  useVirtualNodeRpcUrl,
+  convertFungibleTokensToParsedUserAssets,
+} from '../../utils/orb';
+
 interface ChildInputAPI {
   blur: () => void;
   focus: () => void;
@@ -103,6 +115,7 @@ interface ChildInputAPI {
 }
 
 export function Send() {
+  const { currentAddress } = useCurrentAddressStore();
   const [waitingForDevice, setWaitingForDevice] = useState(false);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
   const [contactSaveAction, setSaveContactAction] = useState<{
@@ -137,13 +150,32 @@ export function Send() {
   const { connectedToHardhat, connectedToHardhatOp } =
     useConnectedToHardhatStore();
 
+  const clusterId = useCreateClusterId(currentAddress);
+  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(clusterId, currentAddress);
+  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
+  const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
+
+  console.log('portfolio in send', portfolio);
+
+  const orbyAssets = useMemo(
+    () =>
+      portfolio
+        ? convertFungibleTokensToParsedUserAssets(
+            portfolio.fungibleTokenBalances,
+          )
+        : [],
+    [portfolio],
+  );
+
   const {
     asset,
     selectAssetAddressAndChain,
     assets,
     setSortMethod,
     sortMethod,
-  } = useSendAsset();
+  } = useSendAsset({ assets: orbyAssets });
+
+  console.log('asset', asset);
 
   const unhiddenAssets = useMemo(
     () => assets.filter((asset) => !isHidden(asset)),
@@ -163,6 +195,9 @@ export function Send() {
   const toAddressInputRef = useRef<ChildInputAPI>(null);
   const sendTokenInputRef = useRef<ChildInputAPI>(null);
   const valueInputRef = useRef<ChildInputAPI>(null);
+
+  console.log('orbyAssets', orbyAssets);
+  console.log('unhiddenAssets', unhiddenAssets);
 
   const {
     assetAmount,
@@ -206,6 +241,8 @@ export function Send() {
     toAddressOrName,
   });
 
+  console.log('readyForReview', readyForReview);
+
   const controls = useAnimationControls();
   const transactionRequestForGas: TransactionRequest = useMemo(() => {
     if (nft) {
@@ -246,7 +283,8 @@ export function Send() {
   );
 
   const openReviewSheet = useCallback(() => {
-    if (readyForReview) {
+    // if (readyForReview) {
+    if (true) {
       setShowReviewSheet(true);
     } else {
       controls.start({
@@ -360,6 +398,22 @@ export function Send() {
             setWaitingForDevice(true);
           }
           resetSendValues();
+
+          const orbyTxResult = await sendOrbyTransaction({
+            virtualNodeRpcUrl: virtualNodeRpcUrl!,
+            clusterId: clusterId!,
+            standardizedTokenId: asset.address, // NOTE: we're using the address field as the standardizedTokenId
+            amount: Number(assetAmount),
+            recipient: {
+              address: txToAddress,
+              chainId: `EIP155-${activeChainId}`,
+            },
+          });
+
+          console.log('orbyTxResult', orbyTxResult);
+
+          return;
+
           const result = await sendTransaction({
             from: fromAddress,
             to: txToAddress,
@@ -453,6 +507,8 @@ export function Send() {
 
   const selectAsset = useCallback(
     (address: AddressOrEth | '', chainId: ChainId) => {
+      console.log('addressOrEth', address);
+      console.log('chainId', chainId);
       selectAssetAddressAndChain(address, chainId);
       saveSendTokenAddressAndChain({
         address,
@@ -698,7 +754,7 @@ export function Send() {
                 >
                   <SendTokenInput
                     asset={asset}
-                    assets={unhiddenAssets}
+                    assets={assets}
                     selectAssetAddressAndChain={selectAsset}
                     dropdownClosed={toAddressDropdownOpen}
                     setSortMethod={setSortMethod}

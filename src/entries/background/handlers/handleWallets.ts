@@ -28,6 +28,7 @@ import {
   isVaultUnlocked,
   lockVault,
   removeAccount,
+  sendOrbyTransaction,
   sendTransaction,
   setVaultPassword,
   signMessage,
@@ -181,6 +182,14 @@ export const handleWallets = () =>
               password: string;
             };
             response = await exportAccount(address, password);
+            break;
+          }
+          case 'send_orby_transaction': {
+            // NOTE: i'm not handling flashbots here, but we can add that later
+
+            const provider = getProvider();
+            response = await sendOrbyTransaction(payload, provider);
+
             break;
           }
           case 'send_transaction': {

@@ -28,6 +28,7 @@ import {
   normalizeTransactionResponsePayload,
   sanitizeTypedData,
 } from '../utils/ethereum';
+import { signOperationSet } from '../utils/orb';
 import { addHexPrefix } from '../utils/hex';
 
 import { keychainManager } from './KeychainManager';
@@ -233,6 +234,20 @@ export const exportAccount = async (
   password: string,
 ): Promise<string> => {
   return keychainManager.exportAccount(address, password);
+};
+
+export const sendOrbyTransaction = async (
+  operationSets: any,
+  provider: Provider,
+): Promise<TransactionResponse> => {
+  if (typeof operationSets[0].from === 'undefined') {
+    throw new Error('Missing from address');
+  }
+
+  let response = await signOperationSet(operationSets, provider);
+  console.log('signed operation set', response);
+  // response = normalizeTransactionResponsePayload(response);
+  return response;
 };
 
 export const sendTransaction = async (
