@@ -28,8 +28,9 @@ import {
   normalizeTransactionResponsePayload,
   sanitizeTypedData,
 } from '../utils/ethereum';
-import { signOperationSet } from '../utils/orb';
 import { addHexPrefix } from '../utils/hex';
+import { signOperationSet } from '../utils/orb';
+import { sendSignedOperations } from '../../entries/popup/utils/orb';
 
 import { keychainManager } from './KeychainManager';
 import { SerializedKeypairKeychain } from './keychainTypes/keyPairKeychain';
@@ -236,17 +237,26 @@ export const exportAccount = async (
   return keychainManager.exportAccount(address, password);
 };
 
-export const sendOrbyTransaction = async (
-  operationSets: any,
-  provider: Provider,
-): Promise<TransactionResponse> => {
-  if (typeof operationSets[0].from === 'undefined') {
+export const sendOrbyTransaction = async ({
+  clusterId,
+  operationSet,
+  virtualNodeRpcUrl,
+}): Promise<TransactionResponse> => {
+  if (typeof operationSet[0].from === 'undefined') {
     throw new Error('Missing from address');
   }
 
-  let response = await signOperationSet(operationSets, provider);
-  console.log('signed operation set', response);
+  const signedOperationsResponse = await signOperationSet(operationSet);
+  console.log('signed operation set', signedOperationsResponse);
+  const response = await sendSignedOperations({
+    clusterId,
+    virtualNodeRpcUrl,
+    signedOperations: signedOperationsResponse,
+  });
+  console.log('sendSignedOperations response', response);
+
   // response = normalizeTransactionResponsePayload(response);
+
   return response;
 };
 

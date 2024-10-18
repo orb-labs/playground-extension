@@ -219,3 +219,25 @@ export const getOperationsToTransferToken = async ({
   console.log('operations to transfer token', result);
   return result;
 };
+
+export const sendSignedOperations = async ({
+  clusterId,
+  signedOperations,
+  virtualNodeRpcUrl,
+}) => {
+  const response = await fetch(virtualNodeRpcUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      id: 2,
+      jsonrpc: '2.0',
+      method: 'orby_sendSignedOperations',
+      params: [{ accountClusterId: clusterId, signedOperations }],
+    }),
+  });
+  const result = await response.json();
+  console.log('sendSignedOperations result', result);
+  return result;
+};

@@ -16,7 +16,7 @@ const allowList = require('./static/allowlist.json');
 const manifest = require('./static/manifest.json');
 const manifestFilePath = resolve(__dirname, './build/manifest.json');
 
-console.log("allowList", allowList);
+console.log('allowList', allowList);
 
 const optionalPlugins = [];
 if (process.env.ANALYZE_BUNDLE === 'true') {

@@ -1,7 +1,9 @@
+import { getProvider } from '~/core/wagmi/clientToProvider';
+
 import { keychainManager } from '../keychain/KeychainManager';
 
 // Function that signs an operation set.
-export async function signOperationSet(operationSet, provider) {
+export async function signOperationSet(operationSet) {
   const signedOperations = [];
 
   // Extract the operations in the operationSet.
@@ -15,9 +17,7 @@ export async function signOperationSet(operationSet, provider) {
   // Loop through and sign all the operations
   for (let i = 0; i < operations.length; i++) {
     // Set the provider and wallet instances for each operation
-
-    // const txProvider = new ethers.JsonRpcProvider(operations[i].txRpcUrl);
-
+    const provider = getProvider({ chainId: operations[i].chainId });
     const signer = await keychainManager.getSigner(
       operations[i].from as Address,
     );

@@ -187,8 +187,12 @@ export const handleWallets = () =>
           case 'send_orby_transaction': {
             // NOTE: i'm not handling flashbots here, but we can add that later
 
-            const provider = getProvider();
-            response = await sendOrbyTransaction(payload, provider);
+            const { operationSet, virtualNodeRpcUrl, clusterId } = payload;
+            response = await sendOrbyTransaction({
+              clusterId,
+              operationSet,
+              virtualNodeRpcUrl,
+            });
 
             break;
           }

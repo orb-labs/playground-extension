@@ -120,7 +120,7 @@ export const sendOrbyTransaction = async ({
   // NOTE: i'm not handling hardware wallets here, but we can add that later
   const transactionResponse = await walletAction<TransactionResponse>(
     'send_orby_transaction',
-    operationSet,
+    { operationSet, virtualNodeRpcUrl, clusterId },
   );
 
   return deserializeBigNumbers(transactionResponse);
