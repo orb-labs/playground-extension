@@ -10,7 +10,11 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { Bytes } from '@ethersproject/bytes';
 import { defineReadOnly } from '@ethersproject/properties';
 import { Provider } from '@ethersproject/providers';
-import { personalSign } from '@metamask/eth-sig-util';
+import {
+  SignTypedDataVersion,
+  personalSign,
+  signTypedData,
+} from '@metamask/eth-sig-util';
 import { bytesToHex } from 'ethereum-cryptography/utils';
 import { Address } from 'viem';
 
@@ -46,6 +50,17 @@ export class RainbowSigner extends Signer {
       privateKey: pkey,
       data,
     });
+    return signature;
+  }
+
+  async signTypedData(typedData: any): Promise<string> {
+    const pkey = this.#getPrivateKeyBuffer();
+    const signature = signTypedData({
+      privateKey: pkey,
+      data: typedData,
+      version: SignTypedDataVersion.V4,
+    });
+
     return signature;
   }
 

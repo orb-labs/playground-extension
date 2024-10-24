@@ -65,6 +65,7 @@ import {
 import { triggerAlert } from '~/design-system/components/Alert/Alert';
 import { AccentColorProvider } from '~/design-system/components/Box/ColorContext';
 import { RainbowError, logger } from '~/logger';
+import { BigNumber } from '@ethersproject/bignumber';
 
 import {
   ExplainerSheet,
@@ -107,6 +108,7 @@ import {
   useVirtualNodeRpcUrl,
   convertFungibleTokensToParsedUserAssets,
 } from '../../utils/orb';
+import { convertAmountToRawAmount } from '~/core/utils/numbers';
 
 interface ChildInputAPI {
   blur: () => void;
@@ -242,6 +244,8 @@ export function Send() {
   });
 
   console.log('readyForReview', readyForReview);
+
+  console.log('txToAddress', txToAddress);
 
   const controls = useAnimationControls();
   const transactionRequestForGas: TransactionRequest = useMemo(() => {
@@ -399,35 +403,36 @@ export function Send() {
           }
           resetSendValues();
 
-          const orbyTxResult = await sendOrbyTransaction({
+          const { result } = await sendOrbyTransaction({
             virtualNodeRpcUrl: virtualNodeRpcUrl!,
             clusterId: clusterId!,
             standardizedTokenId: asset.address, // NOTE: we're using the address field as the standardizedTokenId
-            amount: Number(assetAmount),
+            amount: convertAmountToRawAmount(assetAmount, asset.decimals),
             recipient: {
               address: txToAddress,
-              chainId: `EIP155-${activeChainId}`,
+              // chainId: `EIP155-${activeChainId}`,
+              chainId: `EIP155-84532`,
             },
           });
 
-          console.log('orbyTxResult', orbyTxResult);
+          console.log('orbyTxResult', result);
 
-          return;
+          // return;
 
-          const result = await sendTransaction({
-            from: fromAddress,
-            to: txToAddress,
-            value,
-            chainId: activeChainId,
-            data,
-          });
+          // const result = await sendTransaction({
+          //   from: fromAddress,
+          //   to: txToAddress,
+          //   value,
+          //   chainId: activeChainId,
+          //   data,
+          // });
           if (result && asset) {
-            const transaction: NewTransaction = buildPendingTransaction(result);
-            addNewTransaction({
-              address: fromAddress,
-              chainId: activeChainId,
-              transaction,
-            });
+            // const transaction: NewTransaction = buildPendingTransaction(result);
+            // addNewTransaction({
+            //   address: fromAddress,
+            //   chainId: activeChainId,
+            //   transaction,
+            // });
             callback?.();
             navigate(ROUTES.HOME, {
               state: { tab: 'activity' },

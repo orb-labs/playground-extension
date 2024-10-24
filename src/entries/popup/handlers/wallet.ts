@@ -105,11 +105,11 @@ export const sendOrbyTransaction = async ({
 }: {
   clusterId: string;
   standardizedTokenId: string;
-  amount: number;
+  amount: string;
   recipient: { address: string; chainId: string };
   virtualNodeRpcUrl: string;
 }): Promise<TransactionResponse> => {
-  const operationSet = await getOperationsToTransferToken({
+  const { result: operationSet } = await getOperationsToTransferToken({
     virtualNodeRpcUrl,
     clusterId,
     standardizedTokenId,
@@ -122,6 +122,8 @@ export const sendOrbyTransaction = async ({
     'send_orby_transaction',
     { operationSet, virtualNodeRpcUrl, clusterId },
   );
+
+  console.log('transactionResponse', transactionResponse);
 
   return deserializeBigNumbers(transactionResponse);
 };

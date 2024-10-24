@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Address } from 'viem';
+import { Address, formatUnits } from 'viem';
 
 import { ParsedUserAsset } from '~/core/types/assets';
 import { ChainId, ChainName } from '~/core/types/chains';
 
-const PUBLIC_ORB_RPC_BASE = 'https://api-rpc-dev.orblabs.xyz';
+const PUBLIC_ORB_RPC_BASE = '';
 const PUBLIC_ORB_API_KEY = '';
 const PRIVATE_ORB_API_KEY = '';
 
 export const convertFungibleTokenToParsedUserAsset = (
   fungibleToken: any,
 ): ParsedUserAsset => {
+  console.log('fungibleToken', fungibleToken);
   return {
     decimals: fungibleToken.total.currency.decimals,
     uniqueId: fungibleToken.standardizedTokenId,
-    isNativeAsset: fungibleToken.total.currency.isNative,
+    isNativeAsset:
+      fungibleToken.tokenBalancesOnChains[0].token.currency.isNative,
     name: fungibleToken.total.currency.asset.name,
     symbol: fungibleToken.total.currency.asset.symbol,
     // NOTE: we use the address from the fungible token here to be able to select the token
@@ -23,13 +25,19 @@ export const convertFungibleTokenToParsedUserAsset = (
     chainId: ChainId.mainnet,
     chainName: ChainName.mainnet,
     balance: {
-      amount: fungibleToken.total.amount,
-      display: `${fungibleToken.total.amount} ${fungibleToken.total.currency.asset.symbol}`,
+      amount: formatUnits(
+        fungibleToken.total.amount,
+        fungibleToken.total.currency.decimals,
+      ),
+      display: `${formatUnits(
+        fungibleToken.total.amount,
+        fungibleToken.total.currency.decimals,
+      )} ${fungibleToken.total.currency.asset.symbol}`,
     },
     native: {
       balance: {
         amount: fungibleToken.total.amount,
-        display: `$${fungibleToken.total.amount}`,
+        display: '', // this is the price
       },
       price: {
         change: '',
@@ -105,7 +113,7 @@ export const useVirtualNodeRpcUrl = (clusterId, currentAddress) => {
               {
                 accountClusterId: clusterId,
                 entrypointAccountAddress: currentAddress,
-                chainId: 'EIP155-1',
+                chainId: 'EIP155-84532',
               },
             ],
           }),
@@ -192,7 +200,7 @@ export const getOperationsToTransferToken = async ({
 }: {
   clusterId: string;
   standardizedTokenId: string;
-  amount: number;
+  amount: string;
   recipient: { address: string; chainId: string };
   virtualNodeRpcUrl: string;
 }) => {

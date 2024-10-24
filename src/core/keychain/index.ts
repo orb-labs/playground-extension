@@ -242,10 +242,6 @@ export const sendOrbyTransaction = async ({
   operationSet,
   virtualNodeRpcUrl,
 }): Promise<TransactionResponse> => {
-  if (typeof operationSet[0].from === 'undefined') {
-    throw new Error('Missing from address');
-  }
-
   const signedOperationsResponse = await signOperationSet(operationSet);
   console.log('signed operation set', signedOperationsResponse);
   const response = await sendSignedOperations({
@@ -254,8 +250,6 @@ export const sendOrbyTransaction = async ({
     signedOperations: signedOperationsResponse,
   });
   console.log('sendSignedOperations response', response);
-
-  // response = normalizeTransactionResponsePayload(response);
 
   return response;
 };
