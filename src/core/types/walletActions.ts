@@ -25,5 +25,6 @@ export enum walletActions {
   import_hw = 'import_hw',
   get_path = 'get_path',
   add_account_at_index = 'add_account_at_index',
+  send_orby_transaction = 'send_orby_transaction',
 }
 export type WalletAction = keyof typeof walletActions;

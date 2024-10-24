@@ -27,6 +27,7 @@ import {
 } from '~/core/state/hiddenAssets/hiddenAssets';
 import { usePinnedAssetStore } from '~/core/state/pinnedAssets';
 import { ParsedUserAsset } from '~/core/types/assets';
+import { ChainId, ChainName } from '~/core/types/chains';
 import { truncateAddress } from '~/core/utils/address';
 import { isCustomChain } from '~/core/utils/chains';
 import {
@@ -56,6 +57,8 @@ import { ROUTES } from '../../urls';
 import { TokensSkeleton } from './Skeletons';
 import { TokenContextMenu } from './TokenDetails/TokenContextMenu';
 import { TokenMarkedHighlighter } from './TokenMarkedHighlighter';
+
+import { convertFungibleTokenToParsedUserAsset } from '../../utils/orb';
 
 const TokenRow = memo(function TokenRow({
   token,
@@ -97,7 +100,14 @@ const TokenRow = memo(function TokenRow({
   );
 });
 
-export function Tokens({ scrollY }: { scrollY: MotionValue<number> }) {
+export function Tokens({
+  scrollY,
+  portfolio,
+}: {
+  scrollY: MotionValue<number>;
+  portfolio: any;
+}) {
+  console.log('portfolio in tokens component', portfolio);
   const { currentAddress } = useCurrentAddressStore();
   const { currentCurrency: currency } = useCurrentCurrencyStore();
   const [manuallyRefetchingTokens, setManuallyRefetchingTokens] =
@@ -261,9 +271,11 @@ export function Tokens({ scrollY }: { scrollY: MotionValue<number> }) {
     return <TokensSkeleton />;
   }
 
-  if (!filteredAssets?.length) {
+  if (!portfolio?.fungibleTokenBalances?.length) {
     return <TokensEmptyState depositAddress={currentAddress} />;
   }
+
+  console.log('here so we have balances', portfolio.fungibleTokenBalances);
 
   return (
     <Box
@@ -271,7 +283,7 @@ export function Tokens({ scrollY }: { scrollY: MotionValue<number> }) {
       width="full"
       style={{
         maxHeight: `1200px`,
-        overflow: overflow,
+        // overflow: overflow,
       }}
       ref={containerRef}
       paddingBottom="8px"
@@ -297,7 +309,19 @@ export function Tokens({ scrollY }: { scrollY: MotionValue<number> }) {
         }}
       >
         <Box>
-          {assetsRowVirtualizer.getVirtualItems().map((virtualItem) => {
+          {/* Create a mapper function for doing this and can re-us in the send page */}
+          {portfolio.fungibleTokenBalances.map((fungibleToken, index) => {
+            const token = convertFungibleTokenToParsedUserAsset(fungibleToken);
+
+            return (
+              <TokenRow
+                token={token}
+                testId={`coin-row-item-${index}`}
+                key={fungibleToken.standardizedTokenId}
+              />
+            );
+          })}
+          {/* {assetsRowVirtualizer.getVirtualItems().map((virtualItem) => {
             const { key, size, start, index } = virtualItem;
             const token = filteredAssets[index];
             const pinned =
@@ -319,7 +343,7 @@ export function Tokens({ scrollY }: { scrollY: MotionValue<number> }) {
                 <TokenRow token={token} testId={`coin-row-item-${index}`} />
               </Box>
             );
-          })}
+          })} */}
         </Box>
       </Box>
     </Box>

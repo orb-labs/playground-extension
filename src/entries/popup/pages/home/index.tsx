@@ -52,9 +52,21 @@ import { Points } from './Points/Points';
 import { TabHeader } from './TabHeader';
 import { Tokens } from './Tokens';
 
+import {
+  useCreateClusterId,
+  usePortfolio,
+  usePortfolioBalance,
+  useVirtualNodeRpcUrl,
+  convertFungibleTokenToParsedUserAsset,
+} from '../../utils/orb';
+
 const TOP_NAV_HEIGHT = 65;
 
-const Tabs = memo(function Tabs() {
+const Tabs = memo(function Tabs(props: {
+  portfolio: any;
+  portfolioBalance: any;
+}) {
+  console.log('portfolio in tabs', props.portfolio);
   const { trackShortcut } = useKeyboardAnalytics();
   const { visibleTokenCount } = useVisibleTokenCount();
 
@@ -129,13 +141,19 @@ const Tabs = memo(function Tabs() {
 
   return (
     <>
-      <TabBar activeTab={activeTab} setActiveTab={onSelectTab} />
+      <TabBar
+        balance={props.portfolioBalance}
+        activeTab={activeTab}
+        setActiveTab={onSelectTab}
+      />
       <Box
         background="surfacePrimaryElevated"
         style={{ flex: 1, position: 'relative', contentVisibility: 'visible' }}
         height="full"
       >
-        {activeTab === 'tokens' && <Tokens scrollY={scrollY} />}
+        {activeTab === 'tokens' && (
+          <Tokens portfolio={props.portfolio} scrollY={scrollY} />
+        )}
         {activeTab === 'activity' && <Activities />}
         {activeTab === 'nfts' && <NFTs />}
         {activeTab === 'points' && <Points />}
@@ -151,6 +169,18 @@ export const Home = memo(function Home() {
   const navigate = useRainbowNavigate();
   const { pendingRequests } = usePendingRequestStore();
   const prevPendingRequest = usePrevious(pendingRequests?.[0]);
+
+  // const [clusterId, setClusterId] = useState<string | null>(null);
+  // const [virtualNodeRpcUrl, setVirtualNodeRpcUrl] = useState<string | null>(
+  //   null,
+  // );
+  // const [portfolio, setPortfolio] = useState<any>(null);
+  // const [portfolioBalance, setPortfolioBalance] = useState<any>(null);
+
+  const clusterId = useCreateClusterId(currentAddress);
+  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(clusterId, currentAddress);
+  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
+  const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
 
   useEffect(() => {
     if (
@@ -186,6 +216,8 @@ export const Home = memo(function Home() {
     removeImportWalletSecrets();
   }, []);
 
+  console.log('portfolio balance', portfolioBalance);
+
   return (
     <AccentColorProvider color={avatar?.color || globalColors.blue50}>
       {({ className, style }) => (
@@ -205,7 +237,7 @@ export const Home = memo(function Home() {
           >
             <TopNav />
             <Header />
-            <Tabs />
+            <Tabs portfolio={portfolio} portfolioBalance={portfolioBalance} />
             <AppConnectionWalletSwitcher />
           </motion.div>
           <NewTabBar />
@@ -239,27 +271,27 @@ const TopNav = memo(function TopNav() {
     >
       <Navbar
         leftComponent={<AppConnection />}
-        // rightComponent={
-        //   <MoreMenu>
-        //     <CursorTooltip
-        //       align="end"
-        //       arrowAlignment="right"
-        //       arrowDirection="up"
-        //       arrowCentered
-        //       text={i18n.t('tooltip.more')}
-        //       textWeight="bold"
-        //       textSize="12pt"
-        //       textColor="labelSecondary"
-        //       hint={shortcuts.home.OPEN_MORE_MENU.display}
-        //     >
-        //       <Navbar.SymbolButton
-        //         symbol="ellipsis"
-        //         variant="flat"
-        //         tabIndex={3}
-        //       />
-        //     </CursorTooltip>
-        //   </MoreMenu>
-        // }
+        rightComponent={
+          <MoreMenu>
+            <CursorTooltip
+              align="end"
+              arrowAlignment="right"
+              arrowDirection="up"
+              arrowCentered
+              text={i18n.t('tooltip.more')}
+              textWeight="bold"
+              textSize="12pt"
+              textColor="labelSecondary"
+              hint={shortcuts.home.OPEN_MORE_MENU.display}
+            >
+              <Navbar.SymbolButton
+                symbol="ellipsis"
+                variant="flat"
+                tabIndex={3}
+              />
+            </CursorTooltip>
+          </MoreMenu>
+        }
         titleComponent={
           isCollapsed && (
             <WalletContextMenu account={address}>
@@ -295,9 +327,11 @@ const TopNav = memo(function TopNav() {
 function TabBar({
   activeTab,
   setActiveTab,
+  balance,
 }: {
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
+  balance: string;
 }) {
   return (
     <StickyHeader
@@ -305,7 +339,11 @@ function TabBar({
       height={39}
       topOffset={TOP_NAV_HEIGHT}
     >
-      <TabHeader activeTab={activeTab} onSelectTab={setActiveTab} />
+      <TabHeader
+        balance={balance}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+      />
       <Box position="relative" style={{ bottom: 1 }}>
         <Separator color="separatorTertiary" strokeWeight="1px" />
       </Box>
