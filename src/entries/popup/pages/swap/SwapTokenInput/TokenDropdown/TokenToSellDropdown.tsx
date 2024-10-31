@@ -40,6 +40,9 @@ export const TokenToSellDropdown = ({
 
   const t = useTranslationContext();
 
+  console.log('assets in token to sell dropdown', assets);
+  console.log('assetsRowVirtualizer', assetsRowVirtualizer?.getVirtualItems());
+
   return (
     <Stack space="8px">
       <Box paddingHorizontal="20px">
@@ -147,6 +150,7 @@ export const TokenToSellDropdown = ({
             assetsRowVirtualizer?.getVirtualItems().map((virtualItem, i) => {
               const { key, index, size, start } = virtualItem;
               const asset = assets?.[index];
+              console.log('asset', asset);
               return (
                 <Box
                   as={motion.div}
@@ -161,7 +165,7 @@ export const TokenToSellDropdown = ({
                     y: start,
                   }}
                 >
-                  <TokenToSellRow uniqueId={asset?.uniqueId} />
+                  <TokenToSellRow asset={asset} />
                 </Box>
               );
             })}

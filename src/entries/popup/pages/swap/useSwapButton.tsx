@@ -67,151 +67,151 @@ export const useSwapButton = ({
   const { type } = useCurrentWalletTypeAndVendor();
   const isHardwareWallet = type === KeychainType.HardwareWalletKeychain;
 
-  if (isLoading) {
-    return {
-      buttonColor: 'surfaceSecondary',
-      buttonLabelColor: 'labelQuaternary',
-      buttonDisabled: true,
-      buttonLabel: t('swap.actions.loading'),
-      buttonIcon: (
-        <Box
-          width="fit"
-          alignItems="center"
-          justifyContent="center"
-          style={{ margin: 'auto' }}
-        >
-          <Spinner size={16} color="labelQuaternary" />
-        </Box>
-      ),
-      buttonAction: () => null,
-      status: 'loading',
-    };
-  }
+  // if (isLoading) {
+  //   return {
+  //     buttonColor: 'surfaceSecondary',
+  //     buttonLabelColor: 'labelQuaternary',
+  //     buttonDisabled: true,
+  //     buttonLabel: t('swap.actions.loading'),
+  //     buttonIcon: (
+  //       <Box
+  //         width="fit"
+  //         alignItems="center"
+  //         justifyContent="center"
+  //         style={{ margin: 'auto' }}
+  //       >
+  //         <Spinner size={16} color="labelQuaternary" />
+  //       </Box>
+  //     ),
+  //     buttonAction: () => null,
+  //     status: 'loading',
+  //   };
+  // }
 
-  if (!quote) {
-    return {
-      buttonColor: 'surfaceSecondary',
-      buttonDisabled: true,
-      buttonLabel: t('swap.actions.enter_an_amount'),
-      buttonLabelColor: 'labelQuaternary',
-      buttonIcon: null,
-      buttonAction: () => null,
-      status: 'error',
-    };
-  }
+  // if (!quote) {
+  //   return {
+  //     buttonColor: 'surfaceSecondary',
+  //     buttonDisabled: true,
+  //     buttonLabel: t('swap.actions.enter_an_amount'),
+  //     buttonLabelColor: 'labelQuaternary',
+  //     buttonIcon: null,
+  //     buttonAction: () => null,
+  //     status: 'error',
+  //   };
+  // }
 
-  if (!(quote as QuoteError).error) {
-    if (!enoughAssetsForSwap) {
-      return {
-        buttonColor: 'fillSecondary',
-        buttonDisabled: true,
-        buttonLabel: validationButtonLabel,
-        buttonLabelColor: 'label',
-        buttonIcon: null,
-        buttonAction: () => null,
-        status: 'ready',
-      };
-    }
+  // if (!(quote as QuoteError).error) {
+  //   if (!enoughAssetsForSwap) {
+  //     return {
+  //       buttonColor: 'fillSecondary',
+  //       buttonDisabled: true,
+  //       buttonLabel: validationButtonLabel,
+  //       buttonLabelColor: 'label',
+  //       buttonIcon: null,
+  //       buttonAction: () => null,
+  //       status: 'ready',
+  //     };
+  //   }
 
-    if (isDegenModeEnabled) {
-      if (status === 'degen_swapping') {
-        return {
-          buttonColor: 'surfaceSecondary',
-          buttonDisabled: true,
-          buttonLabel: isHardwareWallet
-            ? t('swap.actions.waiting_signature')
-            : t('swap.actions.swapping'),
-          buttonLabelColor: 'labelQuaternary',
-          buttonIcon: (
-            <Box
-              width="fit"
-              alignItems="center"
-              justifyContent="center"
-              style={{ margin: 'auto' }}
-            >
-              <Spinner size={16} color="labelQuaternary" />
-            </Box>
-          ),
-          buttonAction: () => null,
-          status: 'ready',
-        };
-      }
+  //   if (isDegenModeEnabled) {
+  //     if (status === 'degen_swapping') {
+  //       return {
+  //         buttonColor: 'surfaceSecondary',
+  //         buttonDisabled: true,
+  //         buttonLabel: isHardwareWallet
+  //           ? t('swap.actions.waiting_signature')
+  //           : t('swap.actions.swapping'),
+  //         buttonLabelColor: 'labelQuaternary',
+  //         buttonIcon: (
+  //           <Box
+  //             width="fit"
+  //             alignItems="center"
+  //             justifyContent="center"
+  //             style={{ margin: 'auto' }}
+  //           >
+  //             <Spinner size={16} color="labelQuaternary" />
+  //           </Box>
+  //         ),
+  //         buttonAction: () => null,
+  //         status: 'ready',
+  //       };
+  //     }
 
-      return {
-        buttonColor: 'accent',
-        buttonDisabled: false,
-        buttonLabel: t('swap.actions.swap'),
-        buttonLabelColor: 'label',
-        buttonIcon: null,
-        buttonAction: async () => {
-          setStatus('degen_swapping');
-          const swapExecutedSuccessfully = await onSwap({
-            quote,
-            assetToSell,
-            assetToBuy,
-            degenMode: true,
-          });
-          setStatus('idle');
-          if (swapExecutedSuccessfully) {
-            navigate(ROUTES.HOME, { state: { tab: 'activity' } });
-          }
-        },
-        status: 'ready',
-      };
-    }
+  //     return {
+  //       buttonColor: 'accent',
+  //       buttonDisabled: false,
+  //       buttonLabel: t('swap.actions.swap'),
+  //       buttonLabelColor: 'label',
+  //       buttonIcon: null,
+  //       buttonAction: async () => {
+  //         setStatus('degen_swapping');
+  //         const swapExecutedSuccessfully = await onSwap({
+  //           quote,
+  //           assetToSell,
+  //           assetToBuy,
+  //           degenMode: true,
+  //         });
+  //         setStatus('idle');
+  //         if (swapExecutedSuccessfully) {
+  //           navigate(ROUTES.HOME, { state: { tab: 'activity' } });
+  //         }
+  //       },
+  //       status: 'ready',
+  //     };
+  //   }
 
-    return {
-      buttonColor: 'accent',
-      buttonDisabled: false,
-      buttonLabel: t('swap.actions.review'),
-      buttonLabelColor: 'label',
-      buttonIcon: (
-        <Symbol symbol="doc.text.magnifyingglass" weight="bold" size={16} />
-      ),
-      buttonAction: timeEstimate?.isLongWait
-        ? () =>
-            showExplainerSheet({
-              show: true,
-              header: {
-                icon: (
+  return {
+    buttonColor: 'accent',
+    buttonDisabled: false,
+    buttonLabel: t('swap.actions.review'),
+    buttonLabelColor: 'label',
+    buttonIcon: (
+      <Symbol symbol="doc.text.magnifyingglass" weight="bold" size={16} />
+    ),
+    buttonAction: timeEstimate?.isLongWait
+      ? () =>
+          showExplainerSheet({
+            show: true,
+            header: {
+              icon: (
+                <Box>
                   <Box>
-                    <Box>
-                      <CoinIcon asset={assetToSell} size={40} />
-                    </Box>
-                    <Box width="full">
-                      <Inline alignHorizontal="right">
-                        <Bleed right="10px" top="19px">
-                          <Symbol
-                            symbol="exclamationmark.triangle.fill"
-                            size={20}
-                            color="orange"
-                            weight="bold"
-                          />
-                        </Bleed>
-                      </Inline>
-                    </Box>
+                    <CoinIcon asset={assetToSell} size={40} />
                   </Box>
-                ),
+                  <Box width="full">
+                    <Inline alignHorizontal="right">
+                      <Bleed right="10px" top="19px">
+                        <Symbol
+                          symbol="exclamationmark.triangle.fill"
+                          size={20}
+                          color="orange"
+                          weight="bold"
+                        />
+                      </Bleed>
+                    </Inline>
+                  </Box>
+                </Box>
+              ),
+            },
+            title: t('swap.explainers.long_wait.title'),
+            description: [t('swap.explainers.long_wait.description')],
+            actionButton: {
+              label: t('swap.explainers.long_wait.action_label'),
+              variant: 'tinted',
+              labelColor: 'blue',
+              action: () => {
+                hideExplainerSheet();
+                showSwapReviewSheet();
               },
-              title: t('swap.explainers.long_wait.title'),
-              description: [t('swap.explainers.long_wait.description')],
-              actionButton: {
-                label: t('swap.explainers.long_wait.action_label'),
-                variant: 'tinted',
-                labelColor: 'blue',
-                action: () => {
-                  hideExplainerSheet();
-                  showSwapReviewSheet();
-                },
-              },
-              testId: 'swap-long-wait',
-            })
-        : () => {
-            showSwapReviewSheet();
-          },
-      status: 'ready',
-    };
-  }
+            },
+            testId: 'swap-long-wait',
+          })
+      : () => {
+          showSwapReviewSheet();
+        },
+    status: 'ready',
+  };
+  // }
 
   switch ((quote as QuoteError).error_code) {
     case 502:

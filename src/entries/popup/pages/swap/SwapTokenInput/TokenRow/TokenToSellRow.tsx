@@ -23,13 +23,15 @@ import { useUserAsset } from '~/entries/popup/hooks/useUserAsset';
 import { RowHighlightWrapper } from './RowHighlightWrapper';
 
 export type TokenToSellRowProps = {
-  uniqueId: UniqueId;
+  asset: any;
 };
 
-export function TokenToSellRow({ uniqueId }: TokenToSellRowProps) {
-  const { data: asset } = useUserAsset(uniqueId);
+export function TokenToSellRow({ asset }) {
+  // const { data: asset } = useUserAsset(uniqueId);
   const { hideAssetBalances } = useHideAssetBalancesStore();
   const { currentCurrency } = useCurrentCurrencyStore();
+
+  console.log('asset', asset);
 
   const balanceDisplay = useMemo(
     () =>
@@ -102,7 +104,7 @@ export function TokenToSellRow({ uniqueId }: TokenToSellRowProps) {
     <Lens
       borderRadius="12px"
       forceAvatarColor
-      testId={`sell-row-${uniqueId}-active-element-item`}
+      testId={`sell-row-${asset?.uniqueId}-active-element-item`}
     >
       <Box
         className={rowTransparentAccentHighlight}

@@ -65,7 +65,6 @@ import {
 import { triggerAlert } from '~/design-system/components/Alert/Alert';
 import { AccentColorProvider } from '~/design-system/components/Box/ColorContext';
 import { RainbowError, logger } from '~/logger';
-import { BigNumber } from '@ethersproject/bignumber';
 
 import {
   ExplainerSheet,
@@ -100,6 +99,9 @@ import { ReviewSheet } from './ReviewSheet';
 import { SendTokenInput } from './SendTokenInput';
 import { ToAddressInput } from './ToAddressInput';
 import { ValueInput } from './ValueInput';
+import { ChainInput } from './ChainInput';
+
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 
 import {
   useCreateClusterId,
@@ -110,6 +112,22 @@ import {
 } from '../../utils/orb';
 import { convertAmountToRawAmount } from '~/core/utils/numbers';
 
+const MAINNET_CHAINS = [
+  { id: 1, name: 'Ethereum' },
+  { id: 137, name: 'Polygon' },
+  { id: 10, name: 'Optimism' },
+  { id: 42161, name: 'Arbitrum' },
+  { id: 84532, name: 'Base' },
+];
+
+const TESTNET_CHAINS = [
+  { id: 11155111, name: 'Ethereum Sepolia' },
+  { id: 80002, name: 'Polygon Amoy' },
+  { id: 11155420, name: 'Optimism Sepolia' },
+  { id: 421614, name: 'Arbitrum Sepolia' },
+  { id: 84532, name: 'Base Sepolia' },
+];
+
 interface ChildInputAPI {
   blur: () => void;
   focus: () => void;
@@ -117,6 +135,7 @@ interface ChildInputAPI {
 }
 
 export function Send() {
+  const { testnetMode } = useTestnetModeStore();
   const { currentAddress } = useCurrentAddressStore();
   const [waitingForDevice, setWaitingForDevice] = useState(false);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
@@ -125,6 +144,10 @@ export function Send() {
     action: ContactAction;
   }>({ show: false, action: 'save' });
   const [toAddressDropdownOpen, setToAddressDropdownOpen] = useState(false);
+
+  const chains = testnetMode ? TESTNET_CHAINS : MAINNET_CHAINS;
+
+  const [chainId, setChainId] = useState<number | undefined>();
 
   const navigate = useRainbowNavigate();
   const { currentAddress: address } = useCurrentAddressStore();
@@ -158,6 +181,7 @@ export function Send() {
   const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
 
   console.log('portfolio in send', portfolio);
+  console.log('portfolioBalance in send', portfolioBalance);
 
   const orbyAssets = useMemo(
     () =>
@@ -217,7 +241,7 @@ export function Send() {
   const {
     currentCurrency,
     maxAssetBalanceParams,
-    chainId,
+    // chainId,
     data,
     fromAddress,
     toAddress,
@@ -390,6 +414,24 @@ export function Send() {
     ],
   );
 
+  if (asset && portfolio) {
+    console.log(asset?.isNativeAsset);
+    console.log('portfolio here', portfolio);
+    console.log('portfolio balances here', portfolio?.fungibleTokenBalances);
+    const recipientAddress = asset.isNativeAsset
+      ? toAddress
+      : portfolio.fungibleTokenBalances
+          .find(
+            (fungibleToken) =>
+              fungibleToken.standardizedTokenId === asset.address,
+          )
+          .tokenBalancesOnChains.find(
+            (tokenBalances) => tokenBalances.token.chainId === '84532', // base sepolia
+          )?.token.address;
+
+    console.log('recipientAddress', recipientAddress);
+  }
+
   const handleSend = useCallback(
     async (callback?: () => void) => {
       if (!config.send_enabled) return;
@@ -403,15 +445,17 @@ export function Send() {
           }
           resetSendValues();
 
+          console.log('portfolio', portfolio);
+          console.log('asset', asset);
+
           const { result } = await sendOrbyTransaction({
             virtualNodeRpcUrl: virtualNodeRpcUrl!,
             clusterId: clusterId!,
             standardizedTokenId: asset.address, // NOTE: we're using the address field as the standardizedTokenId
             amount: convertAmountToRawAmount(assetAmount, asset.decimals),
             recipient: {
-              address: txToAddress,
-              // chainId: `EIP155-${activeChainId}`,
-              chainId: `EIP155-84532`,
+              address: toAddress,
+              chainId: `EIP155-${chainId}`,
             },
           });
 
@@ -747,6 +791,23 @@ export function Send() {
                 onDropdownOpen={setToAddressDropdownOpen}
                 validateToAddress={validateToAddress}
                 ref={toAddressInputRef}
+              />
+            </Row>
+
+            <Row height="content">
+              <ChainInput
+                availableChains={chains}
+                selectedChain={chains.find((c) => c.id === chainId)}
+                onSelectChain={(chain) => {
+                  setChainId(chain.id);
+                  console.log('chain', chain);
+                }}
+                onDropdownOpen={() => {
+                  console.log('onDropdownOpen');
+                }}
+                onClearSelection={() => {
+                  setChainId(undefined);
+                }}
               />
             </Row>
 

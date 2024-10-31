@@ -80,6 +80,16 @@ import { TokenToSellInput } from './SwapTokenInput/TokenToSellInput';
 import { SwapTimeEstimate, getSwapTimeEstimate } from './swapTimeEstimate';
 import { useSwapButton } from './useSwapButton';
 
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
+
+import {
+  useCreateClusterId,
+  usePortfolio,
+  usePortfolioBalance,
+  useVirtualNodeRpcUrl,
+  convertFungibleTokensToParsedUserAssets,
+} from '../../utils/orb';
+
 const SwapWarning = ({
   timeEstimate,
   priceImpact,
@@ -348,11 +358,20 @@ function SwapButton({
     showExplainerSheet,
     hideExplainerSheet,
     showSwapReviewSheet() {
-      if (readyForReview) showSwapReviewSheet();
+      // if (readyForReview) showSwapReviewSheet();
+      showSwapReviewSheet();
     },
     isDegenModeEnabled,
     timeEstimate,
   });
+
+  console.log('buttonLabel', buttonLabel);
+  console.log('quote', quote);
+  console.log('isLoading', isLoadingQuote);
+  console.log('assetToSell', assetToSell);
+  console.log('assetToBuy', assetToBuy);
+  console.log('buttonDisabled', buttonDisabled);
+  console.log('buttonAction', buttonAction);
 
   return (
     <Button
@@ -362,7 +381,7 @@ function SwapButton({
       color={buttonColor}
       width="full"
       testId="swap-review-button"
-      disabled={buttonDisabled}
+      // disabled={buttonDisabled}
       tabIndex={0}
     >
       <Inline space="8px" alignVertical="center">
@@ -392,6 +411,27 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   const [hasRequestedMaxValueAssetToSell, setHasRequestedMaxValueAssetToSell] =
     useState<boolean>(false);
   const { isFirefox } = useBrowser();
+
+  const { testnetMode } = useTestnetModeStore();
+  const { currentAddress } = useCurrentAddressStore();
+
+  const clusterId = useCreateClusterId(currentAddress);
+  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
+    clusterId,
+    currentAddress,
+    testnetMode,
+  );
+  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
+  const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
+
+  console.log('portfolio', portfolio);
+  console.log('portfolioBalance', portfolioBalance);
+
+  const assetsToSell = portfolio
+    ? convertFungibleTokensToParsedUserAssets(portfolio.fungibleTokenBalances)
+    : [];
+
+  console.log('assetsToSell', assetsToSell);
 
   // translate based on the context, bridge or swap
   const translationContext = {
@@ -431,7 +471,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   }, []);
 
   const {
-    assetsToSell,
+    // assetsToSell,
     assetToSellFilter,
     assetsToBuy,
     assetToBuyFilter,
@@ -710,6 +750,8 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
 
   const assetToBuyAccentColor =
     assetToBuy?.colors?.primary || assetToBuy?.colors?.fallback;
+
+  console.log('unhiddenAssetsToSell', unhiddenAssetsToSell);
 
   return (
     <TranslationContext value={translationContext}>

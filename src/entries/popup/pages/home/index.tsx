@@ -52,6 +52,8 @@ import { Points } from './Points/Points';
 import { TabHeader } from './TabHeader';
 import { Tokens } from './Tokens';
 
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
+
 import {
   useCreateClusterId,
   usePortfolio,
@@ -177,8 +179,14 @@ export const Home = memo(function Home() {
   // const [portfolio, setPortfolio] = useState<any>(null);
   // const [portfolioBalance, setPortfolioBalance] = useState<any>(null);
 
+  const { testnetMode } = useTestnetModeStore();
+
   const clusterId = useCreateClusterId(currentAddress);
-  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(clusterId, currentAddress);
+  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
+    clusterId,
+    currentAddress,
+    testnetMode,
+  );
   const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
   const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
 

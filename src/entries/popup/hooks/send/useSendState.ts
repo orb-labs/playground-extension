@@ -70,14 +70,8 @@ export const useSendState = ({
   }, [assetAmount, asset, fromAddress, nft, sendingNativeAsset, toAddress]);
 
   const txToAddress: Address = useMemo(() => {
-    const assetAddress = asset?.address;
-    const isSendingNativeAsset = assetAddress
-      ? asset?.isNativeAsset
-      : // ? isNativeAsset(assetAddress, chainId)
-        true;
-    return (
-      !isSendingNativeAsset && assetAddress ? assetAddress : toAddress
-    ) as Address;
+    const isSendingNativeAsset = asset?.isNativeAsset;
+    return (!isSendingNativeAsset ? asset?.address : toAddress) as Address;
   }, [asset?.address, chainId, toAddress, asset?.isNativeAsset]);
 
   const maxAssetBalanceParams = useMemo(() => {

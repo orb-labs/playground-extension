@@ -3,6 +3,11 @@ import { Address, formatUnits } from 'viem';
 
 import { ParsedUserAsset } from '~/core/types/assets';
 import { ChainId, ChainName } from '~/core/types/chains';
+import {
+  convertAmountToRawAmount,
+  toFixedDecimals,
+  formatFixedDecimals,
+} from '~/core/utils/numbers';
 
 const PUBLIC_ORB_RPC_BASE = '';
 const PUBLIC_ORB_API_KEY = '';
@@ -93,7 +98,11 @@ export const useCreateClusterId = (currentAddress) => {
   return clusterId;
 };
 
-export const useVirtualNodeRpcUrl = (clusterId, currentAddress) => {
+export const useVirtualNodeRpcUrl = (
+  clusterId,
+  currentAddress,
+  testnetMode,
+) => {
   const [virtualNodeRpcUrl, setVirtualNodeRpcUrl] = useState(null);
 
   useEffect(() => {
@@ -113,7 +122,7 @@ export const useVirtualNodeRpcUrl = (clusterId, currentAddress) => {
               {
                 accountClusterId: clusterId,
                 entrypointAccountAddress: currentAddress,
-                chainId: 'EIP155-84532',
+                chainId: testnetMode ? `EIP155-11155420` : `EIP155-1`,
               },
             ],
           }),
@@ -179,8 +188,15 @@ export const usePortfolioBalance = (clusterId, virtualNodeRpcUrl) => {
       });
       const { result } = await response.json();
       console.log('portfolio balance data', result);
+      console.log(
+        `${Number(result.totalValueInFiat.value).toFixed(
+          result.totalValueInFiat.currency.decimals,
+        )}`,
+      );
       setPortfolioBalance(
-        `$${Number(result.totalValueInFiat.value).toFixed(2)}`,
+        `$${Number(result.totalValueInFiat.value).toFixed(
+          result.totalValueInFiat.currency.decimals,
+        )}`,
       );
     };
     if (clusterId && virtualNodeRpcUrl) {
