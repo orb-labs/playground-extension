@@ -88,6 +88,10 @@ import {
   usePortfolioBalance,
   useVirtualNodeRpcUrl,
   convertFungibleTokensToParsedUserAssets,
+  getStandardizedTokenId,
+  getOperationsToSwap,
+  signOperationSet,
+  sendSignedOperations,
 } from '../../utils/orb';
 
 const SwapWarning = ({
@@ -557,6 +561,11 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     bridge,
   });
 
+  console.log('assetToBuyValue', assetToBuyValue);
+  console.log('assetToSellValue', assetToSellValue);
+  console.log('assetToSell', assetToSell);
+  console.log('assetToBuy', assetToBuy);
+
   const { data: swapSlippage } = useSwapSlippage({
     chainId: assetToSell?.chainId || ChainId.mainnet,
     toChainId: assetToBuy?.chainId || ChainId.mainnet,
@@ -753,6 +762,71 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
 
   console.log('unhiddenAssetsToSell', unhiddenAssetsToSell);
 
+  const [operationSet, setOperationSet] = useState([]);
+
+  useEffect(() => {
+    const getSwapDetails = async () => {
+      console.log('in here');
+      const outputStandardizedTokenId = await getStandardizedTokenId({
+        virtualNodeRpcUrl,
+        chainId: `EIP155-${assetToBuy?.chainId}`,
+        tokenAddress: assetToBuy?.address as Address,
+      });
+
+      console.log('standardizedTokenId', outputStandardizedTokenId);
+
+      if (outputStandardizedTokenId) {
+        const operationsToSwap = await getOperationsToSwap({
+          virtualNodeRpcUrl,
+          clusterId,
+          swapType: 'EXACT_INPUT',
+          input: {
+            standardizedTokenId: assetToSell.address,
+            amount: assetToSellValue,
+          },
+          output: {
+            standardizedTokenId: outputStandardizedTokenId,
+            amount: assetToBuyValue,
+          },
+        });
+
+        console.log('operationsToSwap', operationsToSwap);
+        setOperationSet(operationsToSwap);
+      }
+    };
+
+    console.log('assetToBuy', assetToBuy);
+    console.log('assetToSell', assetToSell);
+    console.log('virtualNodeRpcUrl', virtualNodeRpcUrl);
+    if (
+      assetToBuy &&
+      assetToSell &&
+      virtualNodeRpcUrl &&
+      assetToBuyValue &&
+      assetToSellValue
+    ) {
+      getSwapDetails();
+    }
+  }, [
+    assetToBuy,
+    assetToSell,
+    virtualNodeRpcUrl,
+    assetToBuyValue,
+    assetToSellValue,
+  ]);
+
+  const orbySwap = useCallback(async () => {
+    console.log('orbySwap here');
+    const signedOperationsResponse = await signOperationSet(operationSet);
+    const response = await sendSignedOperations({
+      clusterId,
+      signedOperations: signedOperationsResponse,
+      virtualNodeRpcUrl,
+    });
+
+    return response;
+  }, [clusterId, operationSet, virtualNodeRpcUrl]);
+
   return (
     <TranslationContext value={translationContext}>
       <Navbar
@@ -773,6 +847,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
         }
       />
       <SwapReviewSheet
+        orbySwap={orbySwap}
         show={showSwapReview}
         assetToBuy={assetToBuy}
         assetToSell={assetToSell}

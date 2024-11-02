@@ -103,7 +103,9 @@ export const useVirtualNodeRpcUrl = (
   currentAddress,
   testnetMode,
 ) => {
-  const [virtualNodeRpcUrl, setVirtualNodeRpcUrl] = useState(null);
+  const [virtualNodeRpcUrl, setVirtualNodeRpcUrl] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const fetchVirtualNodeRpcUrl = async () => {
@@ -242,6 +244,74 @@ export const getOperationsToTransferToken = async ({
   const result = await response.json();
   console.log('operations to transfer token', result);
   return result;
+};
+
+export const getOperationsToSwap = async ({
+  virtualNodeRpcUrl,
+  clusterId,
+  swapType,
+  input,
+  output,
+}) => {
+  const response = await fetch(virtualNodeRpcUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getOperationsToSwap',
+      params: [
+        {
+          clusterId,
+          swapType,
+          input,
+          output,
+        },
+      ],
+    }),
+  });
+
+  const { result } = await response.json();
+  return result;
+};
+
+export const getStandardizedTokenId = async ({
+  virtualNodeRpcUrl,
+  chainId,
+  tokenAddress,
+}: {
+  virtualNodeRpcUrl: string;
+  chainId: string;
+  tokenAddress: string;
+}) => {
+  const response = await fetch(virtualNodeRpcUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'orby_getStandardizedTokenIds',
+      params: [
+        {
+          tokens: [
+            {
+              chainId,
+              tokenAddress,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+  const { result } = await response.json();
+  console.log('result', result);
+
+  // TODO: get the first one
+  return result?.standardizedTokenIds?.[0] || null;
 };
 
 export const sendSignedOperations = async ({

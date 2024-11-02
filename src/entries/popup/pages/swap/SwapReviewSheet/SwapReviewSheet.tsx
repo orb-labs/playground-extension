@@ -165,6 +165,7 @@ export type SwapReviewSheetProps = {
   quote?: Quote | CrosschainQuote | QuoteError;
   flashbotsEnabled: boolean;
   hideSwapReview: () => void;
+  orbySwap: () => void;
 };
 
 export const SwapReviewSheet = ({
@@ -175,6 +176,7 @@ export const SwapReviewSheet = ({
   quote,
   flashbotsEnabled,
   hideSwapReview,
+  orbySwap,
 }: SwapReviewSheetProps) => {
   if (!quote || !assetToBuy || !assetToSell || (quote as QuoteError)?.error)
     return null;
@@ -187,6 +189,7 @@ export const SwapReviewSheet = ({
       quote={quote as Quote | CrosschainQuote}
       flashbotsEnabled={flashbotsEnabled}
       hideSwapReview={hideSwapReview}
+      orbySwap={orbySwap}
     />
   );
 };
@@ -199,6 +202,7 @@ type SwapReviewSheetWithQuoteProps = {
   quote: Quote | CrosschainQuote;
   flashbotsEnabled: boolean;
   hideSwapReview: () => void;
+  orbySwap: () => void;
 };
 
 const SwapReviewSheetWithQuote = ({
@@ -209,6 +213,7 @@ const SwapReviewSheetWithQuote = ({
   quote,
   flashbotsEnabled,
   hideSwapReview,
+  orbySwap,
 }: SwapReviewSheetWithQuoteProps) => {
   const navigate = useRainbowNavigate();
 
@@ -265,27 +270,33 @@ const SwapReviewSheetWithQuote = ({
   const closeMoreDetails = useCallback(() => setShowDetails(false), []);
 
   const handleSwap = useCallback(async () => {
-    if (!enoughNativeAssetBalanceForGas) {
-      alert(
-        i18n.t('send.button_label.insufficient_native_asset_for_gas', {
-          symbol: nativeAsset?.symbol,
-        }),
-      );
-      return;
-    }
+    console.log('handleSwap');
 
     setSendingSwap(true);
-    const swapExecutedSuccessfully = await onSwap({
-      assetToSell,
-      assetToBuy,
-      quote,
-      degenMode: false,
-    });
+    await orbySwap();
     setSendingSwap(false);
 
-    if (swapExecutedSuccessfully) {
-      navigate(ROUTES.HOME, { state: { tab: 'tokens' } });
-    }
+    // if (!enoughNativeAssetBalanceForGas) {
+    //   alert(
+    //     i18n.t('send.button_label.insufficient_native_asset_for_gas', {
+    //       symbol: nativeAsset?.symbol,
+    //     }),
+    //   );
+    //   return;
+    // }
+
+    // setSendingSwap(true);
+    // const swapExecutedSuccessfully = await onSwap({
+    //   assetToSell,
+    //   assetToBuy,
+    //   quote,
+    //   degenMode: false,
+    // });
+    // setSendingSwap(false);
+
+    // if (swapExecutedSuccessfully) {
+    //   navigate(ROUTES.HOME, { state: { tab: 'tokens' } });
+    // }
   }, [
     assetToBuy,
     assetToSell,
