@@ -18,6 +18,7 @@ import { useSelectedTokenStore } from '~/core/state/selectedToken';
 import { ParsedSearchAsset, ParsedUserAsset } from '~/core/types/assets';
 import { ChainId } from '~/core/types/chains';
 import { SearchAsset } from '~/core/types/search';
+import { convertAmountToRawAmount } from '~/core/utils/numbers';
 import { getQuoteServiceTime } from '~/core/utils/swaps';
 import {
   Box,
@@ -782,11 +783,15 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
           swapType: 'EXACT_INPUT',
           input: {
             standardizedTokenId: assetToSell.address,
-            amount: assetToSellValue,
+            amount: Number(
+              convertAmountToRawAmount(assetToSellValue, assetToSell.decimals),
+            ),
           },
           output: {
             standardizedTokenId: outputStandardizedTokenId,
-            amount: assetToBuyValue,
+            // amount: Number(
+            //   convertAmountToRawAmount(assetToBuyValue, assetToBuy.decimals),
+            // ),
           },
         });
 

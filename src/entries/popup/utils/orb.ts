@@ -124,7 +124,7 @@ export const useVirtualNodeRpcUrl = (
               {
                 accountClusterId: clusterId,
                 entrypointAccountAddress: currentAddress,
-                chainId: testnetMode ? `EIP155-11155420` : `EIP155-1`,
+                chainId: testnetMode ? `EIP155-11155420` : `EIP155-8453`,
               },
             ],
           }),
@@ -261,10 +261,10 @@ export const getOperationsToSwap = async ({
     body: JSON.stringify({
       jsonrpc: '2.0',
       id: 1,
-      method: 'getOperationsToSwap',
+      method: 'orby_getOperationsToSwap',
       params: [
         {
-          clusterId,
+          accountClusterId: clusterId,
           swapType,
           input,
           output,
