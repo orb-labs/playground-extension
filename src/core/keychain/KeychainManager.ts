@@ -536,7 +536,15 @@ class KeychainManager {
     for (let i = 0; i < this.state.keychains.length; i++) {
       const keychain = this.state.keychains[i];
       const accounts = await keychain.getAccounts();
-      if (accounts.includes(address)) {
+      console.log('address', address);
+      console.log('accounts', accounts);
+      console.log(
+        'if check',
+        accounts.map((a) => a.toLowerCase()).includes(address.toLowerCase()),
+      );
+      if (
+        accounts.map((a) => a.toLowerCase()).includes(address.toLowerCase())
+      ) {
         return keychain;
       }
     }

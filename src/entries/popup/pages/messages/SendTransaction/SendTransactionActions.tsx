@@ -24,8 +24,12 @@ export const SendTransactionActions = ({
   loading: boolean;
   dappStatus?: DAppStatus;
 }) => {
-  const { enoughNativeAssetForGas, buttonLabel } =
-    useApproveAppRequestValidations({ session, dappStatus });
+  const { buttonLabel } = useApproveAppRequestValidations({
+    session,
+    dappStatus,
+  });
+
+  const enoughNativeAssetForGas = true;
 
   const { trackShortcut } = useKeyboardAnalytics();
   useKeyboardShortcut({
@@ -40,6 +44,8 @@ export const SendTransactionActions = ({
       }
     },
   });
+
+  console.log('buttonLabel', buttonLabel);
 
   return (
     <Inline space="12px" wrap={false}>

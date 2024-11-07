@@ -106,6 +106,8 @@ export const sendTransaction = async (
     provider,
   });
 
+  console.log('selectedGas', selectedGas);
+
   const nonce =
     transactionRequest.nonce ??
     (await getNextNonce({

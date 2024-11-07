@@ -19,7 +19,8 @@ export const useApproveAppRequestValidations = ({
   const { connectedToHardhat, connectedToHardhatOp } =
     useConnectedToHardhatStore();
 
-  const enoughNativeAssetForGas = useHasEnoughGas(session);
+  // const enoughNativeAssetForGas = useHasEnoughGas(session);
+  const enoughNativeAssetForGas = true;
 
   const buttonLabel = useMemo(() => {
     const activeChainId = chainIdToUse(

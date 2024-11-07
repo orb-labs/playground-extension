@@ -21,6 +21,14 @@ import { AccountSigningWith } from '../AccountSigningWith';
 
 import { SignMessageActions } from './SignMessageActions';
 import { SignMessageInfo } from './SignMessageInfo';
+import {
+  signOperationSet,
+  useCreateClusterId,
+  sendSignedOperations,
+  useVirtualNodeRpcUrl,
+  getOperationsToSignTypedData,
+} from '~/core/utils/orb';
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 
 interface ApproveRequestProps {
   approveRequest: (payload: unknown) => void;
@@ -57,6 +65,64 @@ export function SignMessage({
 
   const selectedWallet = activeSession?.address;
 
+  const { testnetMode } = useTestnetModeStore();
+
+  // TODO: create hook for orby_getOperationsToSignTypedData here and display the operations
+
+  const clusterId = useCreateClusterId(selectedWallet);
+  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
+    clusterId,
+    selectedWallet,
+    testnetMode,
+  );
+
+  console.log('clusterId', clusterId);
+  console.log('virtualNodeRpcUrl', virtualNodeRpcUrl);
+
+  const [operations, setOperations] = useState(null);
+
+  useEffect(() => {
+    console.log('in useEffect');
+    const getOperations = async ({
+      virtualNodeRpcUrl,
+      to,
+      data,
+      clusterId,
+    }) => {
+      const operationSet = await getOperationsToSignTypedData({
+        to,
+        data,
+        clusterId,
+        virtualNodeRpcUrl,
+      });
+
+      console.log('operationSet', operationSet);
+
+      const operations = operationSet.intents
+        .map((intent) => intent.intentOperations)
+        .flat()
+        ?.concat(operationSet.primaryOperation)
+        .filter((value) => value !== undefined && value !== null);
+
+      console.log('operations before setting', operations);
+
+      setOperations(operations);
+    };
+
+    if (clusterId && virtualNodeRpcUrl && request) {
+      console.log('before get operations');
+
+      const requestPayload = getSigningRequestDisplayDetails(request);
+
+      getOperations({
+        clusterId,
+        virtualNodeRpcUrl,
+        to: requestPayload.address,
+        data: requestPayload.msgData,
+      });
+    }
+  }, [clusterId, virtualNodeRpcUrl, request, selectedWallet]);
+
   const onAcceptRequest = useCallback(async () => {
     const walletAction = getWalletActionMethod(request?.method);
     const requestPayload = getSigningRequestDisplayDetails(request);
@@ -66,6 +132,7 @@ export function SignMessage({
     let result = null;
 
     setLoading(true);
+    let hash;
     try {
       // Change the label while we wait for confirmation
       if (type === 'HardwareWalletKeychain') {
@@ -81,17 +148,29 @@ export function SignMessage({
           dappURL: dappMetadata?.appHost || '',
           dappName: dappMetadata?.appName,
         });
+        hash = result;
+        // TODO: use orby_sendSignedOperations
       } else if (walletAction === 'sign_typed_data') {
-        result = await wallet.signTypedData(
-          requestPayload.msgData,
-          requestPayload.address,
-        );
+        const signedOperations = await signOperationSet(operations);
+        console.log('signedOperations: ', signedOperations);
+        const result = await sendSignedOperations({
+          clusterId,
+          signedOperations,
+          virtualNodeRpcUrl,
+        });
+        console.log('result', result);
+        hash = result.hash;
+
+        // result = await wallet.signTypedData(
+        //   requestPayload.msgData,
+        //   requestPayload.address,
+        // );
         analytics.track(event.dappPromptSignTypedDataApproved, {
           dappURL: dappMetadata?.appHost || '',
           dappName: dappMetadata?.appName,
         });
       }
-      approveRequest(result);
+      approveRequest(hash);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       showLedgerDisconnectedAlertIfNeeded(e);
@@ -107,6 +186,9 @@ export function SignMessage({
     dappMetadata?.appName,
     request,
     selectedWallet,
+    clusterId,
+    virtualNodeRpcUrl,
+    operations,
   ]);
 
   const onRejectRequest = useCallback(() => {

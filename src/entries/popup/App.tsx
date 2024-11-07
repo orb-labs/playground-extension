@@ -74,9 +74,9 @@ export function App() {
       lazyLoad: true,
     });
 
-    if (process.env.IS_DEV !== 'true') {
-      document.addEventListener('contextmenu', (e) => e.preventDefault());
-    }
+    // if (process.env.IS_DEV !== 'true') {
+    //   document.addEventListener('contextmenu', (e) => e.preventDefault());
+    // }
 
     // prevent trackpad double tap zoom
     const app = document.getElementById('app');

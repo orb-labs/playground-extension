@@ -32,6 +32,15 @@ import { AccountSigningWith } from '../AccountSigningWith';
 
 import { SendTransactionActions } from './SendTransactionActions';
 import { SendTransactionInfo } from './SendTransactionsInfo';
+import {
+  useCreateClusterId,
+  useVirtualNodeRpcUrl,
+  getOperationsToExecuteTransaction,
+  signOperationSet,
+  sendSignedOperations,
+} from '~/core/utils/orb';
+
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 
 interface ApproveRequestProps {
   approveRequest: (payload: unknown) => void;
@@ -70,6 +79,62 @@ export function SendTransaction({
     flashbotsEnabled &&
     activeSession?.chainId === ChainId.mainnet;
 
+  const { testnetMode } = useTestnetModeStore();
+
+  console.log('request', request);
+
+  const clusterId = useCreateClusterId(selectedWallet);
+  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
+    clusterId,
+    selectedWallet,
+    testnetMode, // testnet mode
+  );
+
+  console.log('clusterId', clusterId);
+  console.log('virtualNodeRpcUrl', virtualNodeRpcUrl);
+
+  const [operations, setOperations] = useState(null);
+
+  console.log('operations', operations);
+
+  useEffect(() => {
+    console.log('in useEffect');
+    const getOperations = async ({ virtualNodeRpcUrl, request }) => {
+      const operationSet = await getOperationsToExecuteTransaction({
+        virtualNodeRpcUrl,
+        request,
+      });
+
+      console.log('operationSet', operationSet);
+
+      const operations = operationSet.intents
+        .map((intent) => intent.intentOperations)
+        .flat()
+        ?.concat(operationSet.primaryOperation)
+        .filter((value) => value !== undefined && value !== null);
+
+      console.log('operations before setting', operations);
+
+      setOperations(operations);
+    };
+
+    if (clusterId && virtualNodeRpcUrl && request) {
+      const txRequest = request?.params?.[0] as TransactionRequest;
+
+      const txData = {
+        value: txRequest.value || '0x0',
+        to: txRequest?.to ? (getAddress(txRequest?.to) as Address) : undefined,
+        data: txRequest.data ?? '0x',
+      };
+
+      console.log('before get operations');
+
+      getOperations({ virtualNodeRpcUrl, request: txData });
+    }
+  }, [clusterId, virtualNodeRpcUrl, request]);
+
+  // TODO: create hook for orby_getOperationsToExecuteTransaction here and display the operations
+
   const onAcceptRequest = useCallback(async () => {
     if (!config.tx_requests_enabled) return;
     if (!selectedWallet || !activeSession) return;
@@ -78,53 +143,68 @@ export function SendTransaction({
       const txRequest = request?.params?.[0] as TransactionRequest;
       const { type } = await wallet.getWallet(selectedWallet);
 
+      console.log('txRequest', txRequest);
+
       // Change the label while we wait for confirmation
       if (type === 'HardwareWalletKeychain') {
         setWaitingForDevice(true);
       }
+
+      const signedOperations = await signOperationSet(operations);
+      console.log('signedOperations', signedOperations);
+      const result = await sendSignedOperations({
+        clusterId,
+        virtualNodeRpcUrl,
+        signedOperations,
+      });
+
+      console.log('result', result);
+
       const activeChainId = chainIdToUse(
         connectedToHardhat,
         connectedToHardhatOp,
         activeSession.chainId,
       );
-      const txData = {
-        from: selectedWallet,
-        to: txRequest?.to ? (getAddress(txRequest?.to) as Address) : undefined,
-        value: txRequest.value || '0x0',
-        data: txRequest.data ?? '0x',
+      // const txData = {
+      //   from: selectedWallet,
+      //   to: txRequest?.to ? (getAddress(txRequest?.to) as Address) : undefined,
+      //   value: txRequest.value || '0x0',
+      //   data: txRequest.data ?? '0x',
+      //   chainId: activeChainId,
+      // };
+      // const result = await wallet.sendTransaction(txData);
+      // console.log('result', result);
+      // if (result) {
+      //   const transaction = {
+      //     asset: asset || undefined,
+      //     value: result.value.toString(),
+      //     data: result.data,
+      //     flashbots: flashbotsEnabledGlobally,
+      //     from: txData.from,
+      //     to: txData.to,
+      //     hash: result.hash as TxHash,
+      //     chainId: txData.chainId,
+      //     nonce: result.nonce,
+      //     status: 'pending',
+      //     type: 'send',
+      //     ...selectedGas.transactionGasParams,
+      //   } satisfies NewTransaction;
+
+      // addNewTransaction({
+      //   address: txData.from,
+      //   chainId: txData.chainId,
+      //   transaction,
+      // });
+      const lastHash =
+        result.operationResponses[result.operationResponses.length - 1].hash;
+      approveRequest(lastHash);
+      setWaitingForDevice(false);
+
+      analytics.track(event.dappPromptSendTransactionApproved, {
         chainId: activeChainId,
-      };
-      const result = await wallet.sendTransaction(txData);
-      if (result) {
-        const transaction = {
-          asset: asset || undefined,
-          value: result.value.toString(),
-          data: result.data,
-          flashbots: flashbotsEnabledGlobally,
-          from: txData.from,
-          to: txData.to,
-          hash: result.hash as TxHash,
-          chainId: txData.chainId,
-          nonce: result.nonce,
-          status: 'pending',
-          type: 'send',
-          ...selectedGas.transactionGasParams,
-        } satisfies NewTransaction;
-
-        addNewTransaction({
-          address: txData.from,
-          chainId: txData.chainId,
-          transaction,
-        });
-        approveRequest(result.hash);
-        setWaitingForDevice(false);
-
-        analytics.track(event.dappPromptSendTransactionApproved, {
-          chainId: txData.chainId,
-          dappURL: dappMetadata?.appHost || '',
-          dappName: dappMetadata?.appName,
-        });
-      }
+        dappURL: dappMetadata?.appHost || '',
+        dappName: dappMetadata?.appName,
+      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       showLedgerDisconnectedAlertIfNeeded(e);
@@ -149,12 +229,15 @@ export function SendTransaction({
     request?.params,
     connectedToHardhat,
     connectedToHardhatOp,
-    asset,
-    flashbotsEnabledGlobally,
-    selectedGas.transactionGasParams,
+    // asset,
+    // flashbotsEnabledGlobally,
+    // selectedGas.transactionGasParams,
     approveRequest,
     dappMetadata?.appHost,
     dappMetadata?.appName,
+    clusterId,
+    operations,
+    virtualNodeRpcUrl,
   ]);
 
   const onRejectRequest = useCallback(() => {
