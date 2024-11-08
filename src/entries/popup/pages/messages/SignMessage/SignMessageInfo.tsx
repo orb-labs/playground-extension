@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, memo } from 'react';
+import { formatUnits } from 'viem';
 
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
 import { i18n } from '~/core/languages';
@@ -7,6 +8,7 @@ import { useDappMetadata } from '~/core/resources/metadata/dapp';
 import { useCurrentCurrencyStore } from '~/core/state';
 import { ProviderRequestPayload } from '~/core/transports/providerRequestTransport';
 import { ChainId } from '~/core/types/chains';
+import { getChain } from '~/core/utils/chains';
 import { copy } from '~/core/utils/copy';
 import { getSigningRequestDisplayDetails } from '~/core/utils/signMessages';
 import { truncateString } from '~/core/utils/strings';
@@ -25,6 +27,7 @@ import {
 
 interface SignMessageProps {
   request: ProviderRequestPayload;
+  operations: any;
 }
 
 function Overview({
@@ -88,7 +91,45 @@ function Overview({
   );
 }
 
-export const SignMessageInfo = ({ request }: SignMessageProps) => {
+const TransactionRoute = memo(function TransactionRoute({
+  operations,
+}: {
+  operations: any;
+}) {
+  console.log('operations', operations);
+  const inputStates = operations
+    ? operations.flatMap(
+        (operation) => operation.inputState.fungibleTokenAmounts,
+      )
+    : [];
+  console.log('inputStates', inputStates);
+  return (
+    <Box gap="16px" display="flex" flexDirection="column" paddingTop="14px">
+      <Text size="12pt" weight="semibold" color="labelTertiary">
+        Using Funds
+      </Text>
+      {inputStates.map((input, i) => (
+        <Inline key={i} alignVertical="center">
+          <Symbol
+            size={14}
+            symbol="arrow.up.circle.fill"
+            weight="bold"
+            color="red"
+          />
+          <Box paddingLeft="10px">
+            <Text key={i} size="14pt" weight="bold" color="label">
+              Use {formatUnits(input.amount, input.token.currency.decimals)}{' '}
+              {input.token.currency.asset.symbol} from{' '}
+              {getChain({ chainId: Number(input.token.chainId) }).name}
+            </Text>
+          </Box>
+        </Inline>
+      ))}
+    </Box>
+  );
+});
+
+export const SignMessageInfo = ({ request, operations }: SignMessageProps) => {
   const dappUrl = request?.meta?.sender?.url || '';
   const { currentCurrency } = useCurrentCurrencyStore();
   const { data: dappMetadata } = useDappMetadata({ url: dappUrl });
@@ -167,7 +208,7 @@ export const SignMessageInfo = ({ request }: SignMessageProps) => {
       </AnimatePresence>
 
       <Tabs
-        tabs={[tabLabel('overview')]}
+        tabs={[tabLabel('overview'), 'Route']}
         expanded={expanded}
         onExpand={() => setExpanded((e) => !e)}
       >
@@ -189,6 +230,9 @@ export const SignMessageInfo = ({ request }: SignMessageProps) => {
               })
             }
           />
+        </TabContent>
+        <TabContent value="Route">
+          {operations && <TransactionRoute operations={operations} />}
         </TabContent>
       </Tabs>
 

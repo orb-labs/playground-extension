@@ -232,7 +232,7 @@ export function SignMessage({
       flexDirection="column"
       style={{ height: POPUP_DIMENSIONS.height, overflow: 'hidden' }}
     >
-      <SignMessageInfo request={request} />
+      <SignMessageInfo request={request} operations={operations} />
       <Stack space="20px" padding="20px">
         <Bleed vertical="4px">
           <AccountSigningWith session={activeSession} noFee />
