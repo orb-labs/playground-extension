@@ -1,3 +1,5 @@
+import { oldDefaultRPC } from '~/core/references/chains';
+
 import { ChainId } from '../types/chains';
 
 const getHost = (endpoint: string) => {
@@ -16,36 +18,13 @@ const isRainbowEndpoint = (endpoint: string) =>
   getHost(endpoint).includes('rainbow.me');
 
 export const proxyRpcEndpoint = (endpoint: string, chainId: ChainId) => {
-  const idToChainstackName = {
-    [ChainId.base]: 'base-mainnet',
-    [ChainId.baseSepolia]: 'base-sepolia',
-
-    [ChainId.bsc]: 'bsc-mainnet',
-    [ChainId.bscTestnet]: 'bsc-testnet',
-
-    [ChainId.arbitrum]: 'arbitrum-mainnet',
-    [ChainId.arbitrumSepolia]: 'arbitrum-sepolia',
-
-    [ChainId.optimism]: 'optimism-mainnet',
-    [ChainId.optimismSepolia]: 'optimism-sepolia',
-
-    [ChainId.polygon]: 'polygon-mainnet',
-    [ChainId.polygonAmoy]: 'polygon-amoy',
-
-    [ChainId.avalanche]: 'avalanche-mainnet',
-    [ChainId.avalancheFuji]: 'avalanche-fuji',
-
-    [ChainId.mainnet]: 'ethereum-mainnet',
-    [ChainId.sepolia]: 'ethereum-sepolia',
-    [ChainId.holesky]: 'ethereum-holesky',
-  };
-
-  console.log('endpoint', endpoint);
+  // NOTE: you'll need your .env file to have the correct RPC URLs
   console.log('chainId', chainId);
-
-  const CHAINSTACK_API_KEY = '';
-
-  return `https://${idToChainstackName[chainId]}.core.chainstack.com/${CHAINSTACK_API_KEY}`;
+  console.log('using this rpc: ', oldDefaultRPC[chainId]);
+  return (
+    oldDefaultRPC[chainId] ||
+    'https://ethereum-holesky.core.chainstack.com/3869a6437a482a0d980d76b40cba3d72'
+  );
 
   // if (
   //   endpoint &&
