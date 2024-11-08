@@ -1,7 +1,7 @@
 import { TransactionRequest } from '@ethersproject/abstract-provider';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ReactNode, memo, useState } from 'react';
-import { Address } from 'viem';
+import { Address, formatUnits } from 'viem';
 
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
 import { i18n } from '~/core/languages';
@@ -60,6 +60,7 @@ interface SendTransactionProps {
   }: {
     preventWindowClose?: boolean;
   }) => void;
+  operations: any;
 }
 
 const InfoRow = ({
@@ -165,6 +166,44 @@ const Overview = memo(function Overview({
         />
       )}
     </Stack>
+  );
+});
+
+const TransactionRoute = memo(function TransactionRoute({
+  operations,
+}: {
+  operations: any;
+}) {
+  console.log('operations', operations);
+  const inputStates = operations
+    ? operations.flatMap(
+        (operation) => operation.inputState.fungibleTokenAmounts,
+      )
+    : [];
+  console.log('inputStates', inputStates);
+  return (
+    <Box gap="16px" display="flex" flexDirection="column" paddingTop="14px">
+      <Text size="12pt" weight="semibold" color="labelTertiary">
+        Using Funds
+      </Text>
+      {inputStates.map((input, i) => (
+        <Inline key={i} alignVertical="center">
+          <Symbol
+            size={14}
+            symbol="arrow.up.circle.fill"
+            weight="bold"
+            color="red"
+          />
+          <Box paddingLeft="10px">
+            <Text key={i} size="14pt" weight="bold" color="label">
+              Use {formatUnits(input.amount, input.token.currency.decimals)}{' '}
+              {input.token.currency.asset.symbol} from{' '}
+              {getChain({ chainId: Number(input.token.chainId) }).name}
+            </Text>
+          </Box>
+        </Inline>
+      ))}
+    </Box>
   );
 });
 
@@ -293,12 +332,14 @@ function TransactionInfo({
   dappMetadata,
   expanded,
   onExpand,
+  operations,
 }: {
   request: TransactionRequest;
   dappUrl: string;
   dappMetadata: DappMetadata | null;
   expanded: boolean;
   onExpand: VoidFunction;
+  operations: any;
 }) {
   const { activeSession } = useAppSession({ host: dappMetadata?.appHost });
   const chainId = activeSession?.chainId || ChainId.mainnet;
@@ -330,7 +371,12 @@ function TransactionInfo({
           // we need a simulation to show the details tab
           !simulation && status === 'error'
             ? [tabLabel('overview'), tabLabel('data')]
-            : [tabLabel('overview'), tabLabel('details'), tabLabel('data')]
+            : [
+                tabLabel('overview'),
+                'Route',
+                tabLabel('details'),
+                tabLabel('data'),
+              ]
         }
         expanded={expanded}
         onExpand={onExpand}
@@ -343,6 +389,9 @@ function TransactionInfo({
             error={error}
             metadata={dappMetadata}
           />
+        </TabContent>
+        <TabContent value="Route">
+          {operations && <TransactionRoute operations={operations} />}
         </TabContent>
         {simulation && (
           <TabContent value={tabLabel('details')}>
@@ -565,6 +614,7 @@ function InsuficientGasFunds({
 export function SendTransactionInfo({
   request,
   onRejectRequest,
+  operations,
 }: SendTransactionProps) {
   const dappUrl = request?.meta?.sender?.url || '';
   const { data: dappMetadata } = useDappMetadata({ url: dappUrl });
@@ -577,7 +627,8 @@ export function SendTransactionInfo({
 
   const isScamDapp = dappMetadata?.status === DAppStatus.Scam;
 
-  const hasEnoughGas = useHasEnoughGas(activeSession);
+  // const hasEnoughGas = useHasEnoughGas(activeSession);
+  const hasEnoughGas = true;
 
   return (
     <Box
@@ -632,6 +683,7 @@ export function SendTransactionInfo({
           dappUrl={dappUrl}
           expanded={expanded}
           onExpand={() => setExpanded((e) => !e)}
+          operations={operations}
         />
       ) : (
         activeSession && (

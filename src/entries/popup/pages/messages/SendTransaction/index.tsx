@@ -295,7 +295,11 @@ export function SendTransaction({
       flexDirection="column"
       style={{ height: POPUP_DIMENSIONS.height, overflow: 'hidden' }}
     >
-      <SendTransactionInfo request={request} onRejectRequest={rejectRequest} />
+      <SendTransactionInfo
+        request={request}
+        onRejectRequest={rejectRequest}
+        operations={operations}
+      />
       <Stack space="20px" padding="20px">
         <Bleed vertical="4px">
           <AccountSigningWith session={activeSession} />
