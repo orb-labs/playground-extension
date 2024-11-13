@@ -33,6 +33,8 @@ import { addHexPrefix } from '../utils/hex';
 import { keychainManager } from './KeychainManager';
 import { SerializedKeypairKeychain } from './keychainTypes/keyPairKeychain';
 
+import { signOperationSet, sendSignedOperations } from '~/core/utils/orb';
+
 interface TypedDataTypes {
   EIP712Domain: MessageTypeProperty[];
   [additionalProperties: string]: MessageTypeProperty[];
@@ -233,6 +235,23 @@ export const exportAccount = async (
   password: string,
 ): Promise<string> => {
   return keychainManager.exportAccount(address, password);
+};
+
+export const sendOrbyTransaction = async ({
+  clusterId,
+  operationSet,
+  virtualNodeRpcUrl,
+}): Promise<TransactionResponse> => {
+  const signedOperationsResponse = await signOperationSet(operationSet);
+  console.log('signed operation set', signedOperationsResponse);
+  const response = await sendSignedOperations({
+    clusterId,
+    virtualNodeRpcUrl,
+    signedOperations: signedOperationsResponse,
+  });
+  console.log('sendSignedOperations response', response);
+
+  return response;
 };
 
 export const sendTransaction = async (

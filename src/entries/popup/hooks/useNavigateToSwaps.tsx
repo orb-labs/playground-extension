@@ -31,14 +31,14 @@ export const useNavigateToSwaps = () => {
   );
 
   return () => {
-    if (testnetMode) {
-      triggerAlert({ text: i18n.t('alert.wallet_testing_mode') });
-    } else if (!allowSwap) {
-      triggerAlert({ text: i18n.t('alert.wallet_watching_mode') });
-    } else {
-      return type === KeychainType.HardwareWalletKeychain && !isFullScreen
-        ? goToNewTab({ url: POPUP_URL + `#${ROUTES.SWAP}?hideBack=true` })
-        : navigate(ROUTES.SWAP);
-    }
+    // if (testnetMode) {
+    //   triggerAlert({ text: i18n.t('alert.wallet_testing_mode') });
+    // } else if (!allowSwap) {
+    //   triggerAlert({ text: i18n.t('alert.wallet_watching_mode') });
+    // } else {
+    return type === KeychainType.HardwareWalletKeychain && !isFullScreen
+      ? goToNewTab({ url: POPUP_URL + `#${ROUTES.SWAP}?hideBack=true` })
+      : navigate(ROUTES.SWAP);
+    // }
   };
 };

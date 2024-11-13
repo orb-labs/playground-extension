@@ -74,7 +74,11 @@ import { Navbar } from '../../components/Navbar/Navbar';
 import { CursorTooltip } from '../../components/Tooltip/CursorTooltip';
 import { TransactionFee } from '../../components/TransactionFee/TransactionFee';
 import { isLedgerConnectionError } from '../../handlers/ledger';
-import { getWallet, sendTransaction } from '../../handlers/wallet';
+import {
+  getWallet,
+  sendOrbyTransaction,
+  sendTransaction,
+} from '../../handlers/wallet';
 import { useSendAsset } from '../../hooks/send/useSendAsset';
 import { useSendInputs } from '../../hooks/send/useSendInputs';
 import { useSendState } from '../../hooks/send/useSendState';
@@ -95,6 +99,34 @@ import { ReviewSheet } from './ReviewSheet';
 import { SendTokenInput } from './SendTokenInput';
 import { ToAddressInput } from './ToAddressInput';
 import { ValueInput } from './ValueInput';
+import { ChainInput } from './ChainInput';
+
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
+
+import {
+  useCreateClusterId,
+  usePortfolio,
+  usePortfolioBalance,
+  useVirtualNodeRpcUrl,
+  convertFungibleTokensToParsedUserAssets,
+} from '~/core/utils/orb';
+import { convertAmountToRawAmount } from '~/core/utils/numbers';
+
+const MAINNET_CHAINS = [
+  { id: 1, name: 'Ethereum' },
+  { id: 137, name: 'Polygon' },
+  { id: 10, name: 'Optimism' },
+  { id: 42161, name: 'Arbitrum' },
+  { id: 84532, name: 'Base' },
+];
+
+const TESTNET_CHAINS = [
+  { id: 11155111, name: 'Ethereum Sepolia' },
+  { id: 80002, name: 'Polygon Amoy' },
+  { id: 11155420, name: 'Optimism Sepolia' },
+  { id: 421614, name: 'Arbitrum Sepolia' },
+  { id: 84532, name: 'Base Sepolia' },
+];
 
 interface ChildInputAPI {
   blur: () => void;
@@ -103,6 +135,8 @@ interface ChildInputAPI {
 }
 
 export function Send() {
+  const { testnetMode } = useTestnetModeStore();
+  const { currentAddress } = useCurrentAddressStore();
   const [waitingForDevice, setWaitingForDevice] = useState(false);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
   const [contactSaveAction, setSaveContactAction] = useState<{
@@ -110,6 +144,10 @@ export function Send() {
     action: ContactAction;
   }>({ show: false, action: 'save' });
   const [toAddressDropdownOpen, setToAddressDropdownOpen] = useState(false);
+
+  const chains = testnetMode ? TESTNET_CHAINS : MAINNET_CHAINS;
+
+  const [chainId, setChainId] = useState<number | undefined>();
 
   const navigate = useRainbowNavigate();
   const { currentAddress: address } = useCurrentAddressStore();
@@ -137,13 +175,35 @@ export function Send() {
   const { connectedToHardhat, connectedToHardhatOp } =
     useConnectedToHardhatStore();
 
+  const clusterId = useCreateClusterId(currentAddress);
+  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
+    clusterId,
+    currentAddress,
+    testnetMode,
+  );
+  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
+  const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
+
+  console.log('portfolio in send', portfolio);
+  console.log('portfolioBalance in send', portfolioBalance);
+
+  const orbyAssets = useMemo(
+    () =>
+      portfolio
+        ? convertFungibleTokensToParsedUserAssets(
+            portfolio.fungibleTokenBalances,
+          )
+        : [],
+    [portfolio],
+  );
+
   const {
     asset,
     selectAssetAddressAndChain,
     assets,
     setSortMethod,
     sortMethod,
-  } = useSendAsset();
+  } = useSendAsset({ assets: orbyAssets });
 
   const unhiddenAssets = useMemo(
     () => assets.filter((asset) => !isHidden(asset)),
@@ -180,7 +240,7 @@ export function Send() {
   const {
     currentCurrency,
     maxAssetBalanceParams,
-    chainId,
+    // chainId,
     data,
     fromAddress,
     toAddress,
@@ -246,7 +306,8 @@ export function Send() {
   );
 
   const openReviewSheet = useCallback(() => {
-    if (readyForReview) {
+    // if (readyForReview) {
+    if (true) {
       setShowReviewSheet(true);
     } else {
       controls.start({
@@ -348,6 +409,24 @@ export function Send() {
     ],
   );
 
+  if (asset && portfolio) {
+    console.log(asset?.isNativeAsset);
+    console.log('portfolio here', portfolio);
+    console.log('portfolio balances here', portfolio?.fungibleTokenBalances);
+    const recipientAddress = asset.isNativeAsset
+      ? toAddress
+      : portfolio.fungibleTokenBalances
+          .find(
+            (fungibleToken) =>
+              fungibleToken.standardizedTokenId === asset.address,
+          )
+          .tokenBalancesOnChains.find(
+            (tokenBalances) => tokenBalances.token.chainId === '84532', // base sepolia
+          )?.token.address;
+
+    console.log('recipientAddress', recipientAddress);
+  }
+
   const handleSend = useCallback(
     async (callback?: () => void) => {
       if (!config.send_enabled) return;
@@ -360,20 +439,33 @@ export function Send() {
             setWaitingForDevice(true);
           }
           resetSendValues();
-          const result = await sendTransaction({
-            from: fromAddress,
-            to: txToAddress,
-            value,
-            chainId: activeChainId,
-            data,
+          // const result = await sendTransaction({
+          //   from: fromAddress,
+          //   to: txToAddress,
+          //   value,
+          //   chainId: activeChainId,
+          //   data,
+          // });
+          const { result } = await sendOrbyTransaction({
+            virtualNodeRpcUrl: virtualNodeRpcUrl!,
+            clusterId: clusterId!,
+            standardizedTokenId: asset.address, // NOTE: we're using the address field as the standardizedTokenId
+            amount: convertAmountToRawAmount(assetAmount, asset.decimals),
+            recipient: {
+              address: toAddress,
+              chainId: `EIP155-${chainId}`,
+            },
           });
+
+          console.log('orbyTxResult', result);
+
           if (result && asset) {
-            const transaction: NewTransaction = buildPendingTransaction(result);
-            addNewTransaction({
-              address: fromAddress,
-              chainId: activeChainId,
-              transaction,
-            });
+            // const transaction: NewTransaction = buildPendingTransaction(result);
+            // addNewTransaction({
+            //   address: fromAddress,
+            //   chainId: activeChainId,
+            //   transaction,
+            // });
             callback?.();
             navigate(ROUTES.HOME, {
               state: { tab: 'activity' },
@@ -690,6 +782,23 @@ export function Send() {
             </Row>
 
             <Row height="content">
+              <ChainInput
+                availableChains={chains}
+                selectedChain={chains.find((c) => c.id === chainId)}
+                onSelectChain={(chain) => {
+                  setChainId(chain.id);
+                  console.log('chain', chain);
+                }}
+                onDropdownOpen={() => {
+                  console.log('onDropdownOpen');
+                }}
+                onClearSelection={() => {
+                  setChainId(undefined);
+                }}
+              />
+            </Row>
+
+            <Row height="content">
               <AccentColorProvider color={assetAccentColor}>
                 <Box
                   background="surfaceSecondaryElevated"
@@ -698,7 +807,8 @@ export function Send() {
                 >
                   <SendTokenInput
                     asset={asset}
-                    assets={unhiddenAssets}
+                    assets={assets}
+                    // assets={unhiddenAssets}
                     selectAssetAddressAndChain={selectAsset}
                     dropdownClosed={toAddressDropdownOpen}
                     setSortMethod={setSortMethod}

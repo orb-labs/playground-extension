@@ -19,6 +19,7 @@ import { ParsedSearchAsset, ParsedUserAsset } from '~/core/types/assets';
 import { ChainId } from '~/core/types/chains';
 import { SearchAsset } from '~/core/types/search';
 import { getQuoteServiceTime } from '~/core/utils/swaps';
+import { convertAmountToRawAmount } from '~/core/utils/numbers';
 import {
   Box,
   Button,
@@ -79,6 +80,20 @@ import { TokenToBuyInput } from './SwapTokenInput/TokenToBuyInput';
 import { TokenToSellInput } from './SwapTokenInput/TokenToSellInput';
 import { SwapTimeEstimate, getSwapTimeEstimate } from './swapTimeEstimate';
 import { useSwapButton } from './useSwapButton';
+
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
+
+import {
+  useCreateClusterId,
+  usePortfolio,
+  usePortfolioBalance,
+  useVirtualNodeRpcUrl,
+  convertFungibleTokensToParsedUserAssets,
+  getStandardizedTokenId,
+  getOperationsToSwap,
+  signOperationSet,
+  sendSignedOperations,
+} from '~/core/utils/orb';
 
 const SwapWarning = ({
   timeEstimate,
@@ -348,7 +363,8 @@ function SwapButton({
     showExplainerSheet,
     hideExplainerSheet,
     showSwapReviewSheet() {
-      if (readyForReview) showSwapReviewSheet();
+      // if (readyForReview) showSwapReviewSheet();
+      showSwapReviewSheet();
     },
     isDegenModeEnabled,
     timeEstimate,
@@ -362,7 +378,7 @@ function SwapButton({
       color={buttonColor}
       width="full"
       testId="swap-review-button"
-      disabled={buttonDisabled}
+      // disabled={buttonDisabled}
       tabIndex={0}
     >
       <Inline space="8px" alignVertical="center">
@@ -392,6 +408,27 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   const [hasRequestedMaxValueAssetToSell, setHasRequestedMaxValueAssetToSell] =
     useState<boolean>(false);
   const { isFirefox } = useBrowser();
+
+  const { testnetMode } = useTestnetModeStore();
+  const { currentAddress } = useCurrentAddressStore();
+
+  const clusterId = useCreateClusterId(currentAddress);
+  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
+    clusterId,
+    currentAddress,
+    testnetMode,
+  );
+  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
+  const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
+
+  console.log('portfolio', portfolio);
+  console.log('portfolioBalance', portfolioBalance);
+
+  const assetsToSell = portfolio
+    ? convertFungibleTokensToParsedUserAssets(portfolio.fungibleTokenBalances)
+    : [];
+
+  console.log('assetsToSell', assetsToSell);
 
   // translate based on the context, bridge or swap
   const translationContext = {
@@ -431,7 +468,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   }, []);
 
   const {
-    assetsToSell,
+    // assetsToSell,
     assetToSellFilter,
     assetsToBuy,
     assetToBuyFilter,
@@ -543,6 +580,8 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
         ? swapSlippage?.slippagePercent
         : slippage,
   });
+
+  console.log('quote', quote);
 
   const { assetToSellNativeDisplay, assetToBuyNativeDisplay } =
     useSwapNativeAmounts({
@@ -711,6 +750,77 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   const assetToBuyAccentColor =
     assetToBuy?.colors?.primary || assetToBuy?.colors?.fallback;
 
+  const [operationSet, setOperationSet] = useState([]);
+
+  useEffect(() => {
+    const getSwapDetails = async () => {
+      console.log('in here');
+      const outputStandardizedTokenId = await getStandardizedTokenId({
+        virtualNodeRpcUrl,
+        chainId: `EIP155-${assetToBuy?.chainId}`,
+        tokenAddress: assetToBuy?.address as Address,
+      });
+
+      console.log('standardizedTokenId', outputStandardizedTokenId);
+
+      if (outputStandardizedTokenId) {
+        const operationsToSwap = await getOperationsToSwap({
+          virtualNodeRpcUrl,
+          clusterId,
+          swapType: 'EXACT_INPUT',
+          input: {
+            standardizedTokenId: assetToSell.address,
+            amount: Number(
+              convertAmountToRawAmount(assetToSellValue, assetToSell.decimals),
+            ),
+          },
+          output: {
+            standardizedTokenId: outputStandardizedTokenId,
+            // amount: Number(
+            //   convertAmountToRawAmount(assetToBuyValue, assetToBuy.decimals),
+            // ),
+          },
+        });
+
+        console.log('operationsToSwap', operationsToSwap);
+        setOperationSet(operationsToSwap);
+      }
+    };
+
+    console.log('assetToBuy', assetToBuy);
+    console.log('assetToSell', assetToSell);
+    console.log('virtualNodeRpcUrl', virtualNodeRpcUrl);
+    if (
+      assetToBuy &&
+      assetToSell &&
+      virtualNodeRpcUrl &&
+      assetToBuyValue &&
+      assetToSellValue
+    ) {
+      getSwapDetails();
+    }
+  }, [
+    assetToBuy,
+    assetToSell,
+    virtualNodeRpcUrl,
+    assetToBuyValue,
+    assetToSellValue,
+  ]);
+
+  console.log('assetToSell', assetToSell);
+
+  const orbySwap = useCallback(async () => {
+    console.log('orbySwap here');
+    const signedOperationsResponse = await signOperationSet(operationSet);
+    const response = await sendSignedOperations({
+      clusterId,
+      signedOperations: signedOperationsResponse,
+      virtualNodeRpcUrl,
+    });
+
+    return response;
+  }, [clusterId, operationSet, virtualNodeRpcUrl]);
+
   return (
     <TranslationContext value={translationContext}>
       <Navbar
@@ -731,6 +841,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
         }
       />
       <SwapReviewSheet
+        orbySwap={orbySwap}
         show={showSwapReview}
         assetToBuy={assetToBuy}
         assetToSell={assetToSell}

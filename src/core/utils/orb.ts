@@ -1,12 +1,68 @@
 import { providers } from 'ethers';
 import { useEffect, useState } from 'react';
-import { Address } from 'viem';
+import { Address, formatUnits } from 'viem';
 
 import { keychainManager } from '~/core/keychain/KeychainManager';
+
+import { ParsedUserAsset } from '~/core/types/assets';
+import { ChainId, ChainName } from '~/core/types/chains';
+import {
+  convertAmountToRawAmount,
+  toFixedDecimals,
+  formatFixedDecimals,
+} from '~/core/utils/numbers';
 
 const PUBLIC_ORB_RPC_BASE = 'https://api-rpc-dev.orblabs.xyz';
 const PUBLIC_ORB_API_KEY = '4ff141e9-98c5-43ee-8b0e-d552f831b68e';
 const PRIVATE_ORB_API_KEY = 'f1c1d996-8df4-4d23-b926-ca702173021d';
+
+export const convertFungibleTokenToParsedUserAsset = (
+  fungibleToken: any,
+): ParsedUserAsset => {
+  console.log('fungibleToken', fungibleToken);
+  return {
+    decimals: fungibleToken.total.currency.decimals,
+    uniqueId: fungibleToken.standardizedTokenId,
+    isNativeAsset:
+      fungibleToken.tokenBalancesOnChains[0].token.currency.isNative,
+    name: fungibleToken.total.currency.asset.name,
+    symbol: fungibleToken.total.currency.asset.symbol,
+    // NOTE: we use the address from the fungible token here to be able to select the token
+    // It doesn't seem to break anything yet, but we'll need to change this if it does
+    address: fungibleToken.standardizedTokenId as Address,
+    chainId: ChainId.mainnet,
+    chainName: ChainName.mainnet,
+    balance: {
+      amount: formatUnits(
+        fungibleToken.total.amount,
+        fungibleToken.total.currency.decimals,
+      ),
+      display: `${formatUnits(
+        fungibleToken.total.amount,
+        fungibleToken.total.currency.decimals,
+      )} ${fungibleToken.total.currency.asset.symbol}`,
+    },
+    native: {
+      balance: {
+        amount: '',
+        display: '', // this is the price
+      },
+      price: {
+        change: '',
+        amount: fungibleToken.total.value,
+        display: 'foo',
+      },
+    },
+  };
+};
+
+export const convertFungibleTokensToParsedUserAssets = (
+  fungibleTokens: any,
+): ParsedUserAsset[] => {
+  return fungibleTokens.map((fungibleToken) => {
+    return convertFungibleTokenToParsedUserAsset(fungibleToken);
+  });
+};
 
 export const useCreateClusterId = (currentAddress) => {
   const [clusterId, setClusterId] = useState(null);
@@ -230,3 +286,175 @@ export async function signOperationSet(operations) {
   // Return the signed operations array
   return signedOperations;
 }
+
+export const usePortfolio = (clusterId, virtualNodeRpcUrl) => {
+  const [portfolio, setPortfolio] = useState(null);
+
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      const response = await fetch(virtualNodeRpcUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'orby_getFungibleTokenPortfolio',
+          params: [{ accountClusterId: clusterId }],
+        }),
+      });
+      const { result } = await response.json();
+      console.log('portfolio data', result);
+      setPortfolio(result);
+    };
+    if (clusterId && virtualNodeRpcUrl) {
+      fetchPortfolio();
+    }
+  }, [clusterId, virtualNodeRpcUrl]);
+
+  return portfolio;
+};
+
+export const usePortfolioBalance = (clusterId, virtualNodeRpcUrl) => {
+  const [portfolioBalance, setPortfolioBalance] = useState(null);
+
+  useEffect(() => {
+    const fetchPortfolioBalance = async () => {
+      const response = await fetch(virtualNodeRpcUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'orby_getPortfolioOverview',
+          params: [{ accountClusterId: clusterId }],
+        }),
+      });
+      const { result } = await response.json();
+      console.log('portfolio balance data', result);
+      console.log(
+        `${Number(result.totalValueInFiat.value).toFixed(
+          result.totalValueInFiat.currency.decimals,
+        )}`,
+      );
+      setPortfolioBalance(
+        `$${Number(result.totalValueInFiat.value).toFixed(
+          result.totalValueInFiat.currency.decimals,
+        )}`,
+      );
+    };
+    if (clusterId && virtualNodeRpcUrl) {
+      fetchPortfolioBalance();
+    }
+  }, [clusterId, virtualNodeRpcUrl]);
+
+  return portfolioBalance;
+};
+
+export const getOperationsToTransferToken = async ({
+  clusterId,
+  standardizedTokenId,
+  amount,
+  recipient,
+  virtualNodeRpcUrl,
+}: {
+  clusterId: string;
+  standardizedTokenId: string;
+  amount: string;
+  recipient: { address: string; chainId: string };
+  virtualNodeRpcUrl: string;
+}) => {
+  const response = await fetch(virtualNodeRpcUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      id: 2,
+      jsonrpc: '2.0',
+      method: 'orby_getOperationsToTransferToken',
+      params: [
+        {
+          accountClusterId: clusterId,
+          standardizedTokenId,
+          amount,
+          recipient,
+        },
+      ],
+    }),
+  });
+  const result = await response.json();
+  console.log('operations to transfer token', result);
+  return result;
+};
+
+export const getOperationsToSwap = async ({
+  virtualNodeRpcUrl,
+  clusterId,
+  swapType,
+  input,
+  output,
+}) => {
+  const response = await fetch(virtualNodeRpcUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'orby_getOperationsToSwap',
+      params: [
+        {
+          accountClusterId: clusterId,
+          swapType,
+          input,
+          output,
+        },
+      ],
+    }),
+  });
+
+  const { result } = await response.json();
+  return result;
+};
+
+export const getStandardizedTokenId = async ({
+  virtualNodeRpcUrl,
+  chainId,
+  tokenAddress,
+}: {
+  virtualNodeRpcUrl: string;
+  chainId: string;
+  tokenAddress: string;
+}) => {
+  const response = await fetch(virtualNodeRpcUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'orby_getStandardizedTokenIds',
+      params: [
+        {
+          tokens: [
+            {
+              chainId,
+              tokenAddress,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+  const { result } = await response.json();
+  console.log('result', result);
+
+  // TODO: get the first one
+  return result?.standardizedTokenIds?.[0] || null;
+};

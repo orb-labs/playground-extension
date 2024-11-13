@@ -161,7 +161,8 @@ export const TokenToSellDropdown = ({
                     y: start,
                   }}
                 >
-                  <TokenToSellRow uniqueId={asset?.uniqueId} />
+                  {/* <TokenToSellRow uniqueId={asset?.uniqueId} /> */}
+                  <TokenToSellRow asset={asset} />
                 </Box>
               );
             })}
