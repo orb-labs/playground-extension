@@ -118,7 +118,7 @@ const MAINNET_CHAINS = [
   { id: 137, name: 'Polygon' },
   { id: 10, name: 'Optimism' },
   { id: 42161, name: 'Arbitrum' },
-  { id: 84532, name: 'Base' },
+  { id: 8453, name: 'Base' },
 ];
 
 const TESTNET_CHAINS = [
