@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Address } from 'viem';
+import { Address, formatUnits } from 'viem';
 
 import { i18n } from '~/core/languages';
 import { useGasStore } from '~/core/state';
@@ -15,7 +15,11 @@ import { ParsedSearchAsset } from '~/core/types/assets';
 import { ChainId } from '~/core/types/chains';
 import { KeychainType } from '~/core/types/keychainTypes';
 import { truncateAddress } from '~/core/utils/address';
-import { processExchangeRateArray } from '~/core/utils/numbers';
+import { getChain } from '~/core/utils/chains';
+import {
+  handleSignificantDecimalsWithThreshold,
+  processExchangeRateArray,
+} from '~/core/utils/numbers';
 import { isUnwrapEth, isWrapEth } from '~/core/utils/swaps';
 import {
   Bleed,
@@ -166,6 +170,7 @@ export type SwapReviewSheetProps = {
   flashbotsEnabled: boolean;
   hideSwapReview: () => void;
   orbySwap: () => void;
+  operationSet: any;
 };
 
 export const SwapReviewSheet = ({
@@ -177,8 +182,15 @@ export const SwapReviewSheet = ({
   flashbotsEnabled,
   hideSwapReview,
   orbySwap,
+  operationSet,
 }: SwapReviewSheetProps) => {
-  if (!quote || !assetToBuy || !assetToSell || (quote as QuoteError)?.error)
+  if (
+    !quote ||
+    !assetToBuy ||
+    !assetToSell ||
+    (quote as QuoteError)?.error ||
+    !operationSet
+  )
     return null;
   return (
     <SwapReviewSheetWithQuote
@@ -190,6 +202,7 @@ export const SwapReviewSheet = ({
       flashbotsEnabled={flashbotsEnabled}
       hideSwapReview={hideSwapReview}
       orbySwap={orbySwap}
+      operationSet={operationSet}
     />
   );
 };
@@ -203,6 +216,7 @@ type SwapReviewSheetWithQuoteProps = {
   flashbotsEnabled: boolean;
   hideSwapReview: () => void;
   orbySwap: () => void;
+  operationSet: any;
 };
 
 const SwapReviewSheetWithQuote = ({
@@ -214,6 +228,7 @@ const SwapReviewSheetWithQuote = ({
   flashbotsEnabled,
   hideSwapReview,
   orbySwap,
+  operationSet,
 }: SwapReviewSheetWithQuoteProps) => {
   const navigate = useRainbowNavigate();
 
@@ -268,6 +283,28 @@ const SwapReviewSheetWithQuote = ({
 
   const openMoreDetails = useCallback(() => setShowDetails(true), []);
   const closeMoreDetails = useCallback(() => setShowDetails(false), []);
+
+  console.log('operationSet', operationSet);
+  const operations =
+    operationSet && operationSet.intents
+      ? operationSet.intents
+          .map((intent) => intent.intentOperations)
+          .flat()
+          ?.concat(operationSet.primaryOperation)
+          .filter(
+            (value) =>
+              value !== undefined &&
+              value !== null &&
+              value.type === 'SUBMIT_INTENT',
+          )
+      : [];
+  console.log('operations', operations);
+  const inputStates = operations
+    ? operations.flatMap(
+        (operation) => operation.inputState.fungibleTokenAmounts,
+      )
+    : [];
+  console.log('inputStates', inputStates);
 
   const handleSwap = useCallback(async () => {
     // if (!enoughNativeAssetBalanceForGas) {
@@ -462,6 +499,37 @@ const SwapReviewSheetWithQuote = ({
               paddingBottom="20px"
             >
               <Stack space="4px">
+                <Box>
+                  {inputStates.map((input, i) => (
+                    <Box key={i} paddingVertical="8px">
+                      <Inline key={i} alignVertical="center">
+                        <Symbol
+                          size={14}
+                          symbol="arrow.up.circle.fill"
+                          weight="bold"
+                          color="red"
+                        />
+                        <Box paddingLeft="10px">
+                          <Text key={i} size="14pt" weight="bold" color="label">
+                            Use{' '}
+                            {handleSignificantDecimalsWithThreshold(
+                              formatUnits(
+                                input.amount,
+                                input.token.currency.decimals,
+                              ),
+                              2,
+                            )}{' '}
+                            {input.token.currency.asset.symbol} from{' '}
+                            {
+                              getChain({ chainId: Number(input.token.chainId) })
+                                .name
+                            }
+                          </Text>
+                        </Box>
+                      </Inline>
+                    </Box>
+                  ))}
+                </Box>
                 <ReviewDetailsRow testId="minimum-received">
                   <Label
                     label={t('swap.review.minimum_received')}

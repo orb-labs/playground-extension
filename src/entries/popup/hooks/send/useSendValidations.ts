@@ -132,15 +132,15 @@ export const useSendValidations = ({
     if (toAddressOrName === '') {
       return i18n.t('send.button_label.enter_address');
     }
-    if (!enoughAssetBalance)
-      return i18n.t('send.button_label.insufficient_asset', {
-        symbol: asset?.symbol,
-      });
-    if (!enoughNativeAssetForGas)
-      return i18n.t('send.button_label.insufficient_native_asset_for_gas', {
-        symbol: getChain({ chainId: asset?.chainId || ChainId.mainnet })
-          .nativeCurrency.symbol,
-      });
+    // if (!enoughAssetBalance)
+    //   return i18n.t('send.button_label.insufficient_asset', {
+    //     symbol: asset?.symbol,
+    //   });
+    // if (!enoughNativeAssetForGas)
+    //   return i18n.t('send.button_label.insufficient_native_asset_for_gas', {
+    //     symbol: getChain({ chainId: asset?.chainId || ChainId.mainnet })
+    //       .nativeCurrency.symbol,
+    //   });
     return i18n.t('send.button_label.review');
   }, [
     asset?.chainId,
@@ -159,9 +159,7 @@ export const useSendValidations = ({
       selectedGas?.gasFee?.amount &&
       isValidToAddress &&
       toAddressOrName !== '' &&
-      (assetAmount || !!nft) &&
-      enoughAssetBalance &&
-      enoughNativeAssetForGas,
+      (assetAmount || !!nft),
     [
       assetAmount,
       enoughAssetBalance,

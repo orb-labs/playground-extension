@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Address } from 'viem';
+import { Address, formatUnits } from 'viem';
 
 import { i18n } from '~/core/languages';
 import { chainsLabel } from '~/core/references/chains';
@@ -16,8 +16,10 @@ import { UniqueAsset } from '~/core/types/nfts';
 import { truncateAddress } from '~/core/utils/address';
 import {
   getBlockExplorerHostForChain,
+  getChain,
   isCustomChain,
 } from '~/core/utils/chains';
+import { handleSignificantDecimalsWithThreshold } from '~/core/utils/numbers';
 import { isLowerCaseMatch } from '~/core/utils/strings';
 import { getExplorerUrl, goToNewTab } from '~/core/utils/tabs';
 import { wagmiConfig } from '~/core/wagmi';
@@ -253,6 +255,7 @@ export const ReviewSheet = ({
   onCancel,
   onSend,
   onSaveContactAction,
+  operationSet,
 }: {
   show: boolean;
   toAddress: Address;
@@ -269,6 +272,7 @@ export const ReviewSheet = ({
       action: ContactAction;
     }>
   >;
+  operationSet: any;
 }) => {
   const { visibleOwnedWallets } = useWallets();
   const [notSendingOnEthereumChecks, setNotSendingOnEthereumChecks] =
@@ -353,6 +357,28 @@ export const ReviewSheet = ({
       }, 500);
     }
   }, [show]);
+
+  console.log('operationSet', operationSet);
+  const operations =
+    operationSet && operationSet.intents
+      ? operationSet.intents
+          .map((intent) => intent.intentOperations)
+          .flat()
+          ?.concat(operationSet.primaryOperation)
+          .filter(
+            (value) =>
+              value !== undefined &&
+              value !== null &&
+              value.type === 'SUBMIT_INTENT',
+          )
+      : [];
+  console.log('operations', operations);
+  const inputStates = operations
+    ? operations.flatMap(
+        (operation) => operation.inputState.fungibleTokenAmounts,
+      )
+    : [];
+  console.log('inputStates', inputStates);
 
   return (
     <>
@@ -541,6 +567,35 @@ export const ReviewSheet = ({
               </Stack>
             </Box>
           </Stack>
+
+          <Box paddingHorizontal="16px">
+            {inputStates.map((input, i) => (
+              <Box key={i} paddingVertical="8px">
+                <Inline key={i} alignVertical="center">
+                  <Symbol
+                    size={14}
+                    symbol="arrow.up.circle.fill"
+                    weight="bold"
+                    color="red"
+                  />
+                  <Box paddingLeft="10px">
+                    <Text key={i} size="14pt" weight="bold" color="label">
+                      Use{' '}
+                      {handleSignificantDecimalsWithThreshold(
+                        formatUnits(
+                          input.amount,
+                          input.token.currency.decimals,
+                        ),
+                        2,
+                      )}{' '}
+                      {input.token.currency.asset.symbol} from{' '}
+                      {getChain({ chainId: Number(input.token.chainId) }).name}
+                    </Text>
+                  </Box>
+                </Inline>
+              </Box>
+            ))}
+          </Box>
 
           {notSendingOnEthereum && !isToWalletOwner && (
             <Box paddingHorizontal="16px" paddingBottom="20px">

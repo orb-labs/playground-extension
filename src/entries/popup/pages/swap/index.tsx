@@ -750,7 +750,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   const assetToBuyAccentColor =
     assetToBuy?.colors?.primary || assetToBuy?.colors?.fallback;
 
-  const [operationSet, setOperationSet] = useState([]);
+  const [operationSet, setOperationSet] = useState(null);
 
   useEffect(() => {
     const getSwapDetails = async () => {
@@ -805,6 +805,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     virtualNodeRpcUrl,
     assetToBuyValue,
     assetToSellValue,
+    clusterId,
   ]);
 
   console.log('assetToSell', assetToSell);
@@ -841,6 +842,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
         }
       />
       <SwapReviewSheet
+        operationSet={operationSet}
         orbySwap={orbySwap}
         show={showSwapReview}
         assetToBuy={assetToBuy}

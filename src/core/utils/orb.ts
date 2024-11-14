@@ -386,7 +386,7 @@ export const getOperationsToTransferToken = async ({
       ],
     }),
   });
-  const result = await response.json();
+  const { result } = await response.json();
   console.log('operations to transfer token', result);
   return result;
 };

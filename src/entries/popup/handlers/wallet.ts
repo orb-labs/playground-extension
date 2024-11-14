@@ -98,28 +98,14 @@ export const signTransactionFromHW = async (
 
 export const sendOrbyTransaction = async ({
   clusterId,
-  standardizedTokenId,
-  amount,
-  recipient,
   virtualNodeRpcUrl,
+  operationSet,
 }: {
   clusterId: string;
-  standardizedTokenId: string;
-  amount: string;
-  recipient: { address: string; chainId: string };
   virtualNodeRpcUrl: string;
+  operationSet: any;
 }): Promise<TransactionResponse> => {
-  const { result: operationSet } = await getOperationsToTransferToken({
-    virtualNodeRpcUrl,
-    clusterId,
-    standardizedTokenId,
-    amount,
-    recipient,
-  });
-
-  console.log('operationSet', operationSet);
-
-  // // NOTE: i'm not handling hardware wallets here, but we can add that later
+  // NOTE: i'm not handling hardware wallets here, but we can add that later
   const transactionResponse = await walletAction<TransactionResponse>(
     'send_orby_transaction',
     { operationSet, virtualNodeRpcUrl, clusterId },

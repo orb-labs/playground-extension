@@ -96,7 +96,15 @@ export const ChainInput = React.forwardRef<InputRefAPI, ChainInputProps>(
           zIndex={2}
           dropdownHeight={300}
           testId="chain-input"
-          leftComponent={<Symbol symbol="network" size={36} color="label" />}
+          leftComponent={
+            <Box
+              background="fillQuaternary"
+              borderColor="separatorTertiary"
+              borderRadius="round"
+              borderWidth="1px"
+              style={{ height: 36, width: 36 }}
+            />
+          }
           centerComponent={
             <Box as={motion.div} layout>
               <Stack space="8px">
@@ -173,12 +181,22 @@ const ChainList = ({
   selectChainAndCloseDropdown: (chain: Chain) => void;
 }) => {
   return (
-    <Stack space="8px">
+    <Stack space="8px" paddingLeft="20px">
       {chains.map((chain) => (
-        <Box key={chain.id} onClick={() => selectChainAndCloseDropdown(chain)}>
-          <Inline alignVertical="center" space="4px">
-            <Symbol symbol="network" size={24} color="label" />
-            <Text size="14pt" color="label" weight="semibold">
+        <Box
+          key={chain.id}
+          onClick={() => selectChainAndCloseDropdown(chain)}
+          paddingBottom="8px"
+        >
+          <Inline alignVertical="center" space="8px">
+            <Box
+              background="fillQuaternary"
+              borderColor="separatorTertiary"
+              borderRadius="round"
+              borderWidth="1px"
+              style={{ height: 36, width: 36 }}
+            />
+            <Text size="14pt" color="labelSecondary" weight="semibold">
               {chain.name}
             </Text>
           </Inline>

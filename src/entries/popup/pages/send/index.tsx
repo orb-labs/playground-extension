@@ -109,6 +109,7 @@ import {
   usePortfolioBalance,
   useVirtualNodeRpcUrl,
   convertFungibleTokensToParsedUserAssets,
+  getOperationsToTransferToken,
 } from '~/core/utils/orb';
 import { convertAmountToRawAmount } from '~/core/utils/numbers';
 
@@ -265,6 +266,8 @@ export function Send() {
     toAddress,
     toAddressOrName,
   });
+
+  console.log('readyForReview', readyForReview);
 
   const controls = useAnimationControls();
   const transactionRequestForGas: TransactionRequest = useMemo(() => {
@@ -427,12 +430,38 @@ export function Send() {
     console.log('recipientAddress', recipientAddress);
   }
 
+  const [operationSet, setOperationSet] = useState(null);
+
+  useEffect(() => {
+    const getSendDetails = async () => {
+      console.log('in here');
+
+      const operationsToSend = await getOperationsToTransferToken({
+        virtualNodeRpcUrl: virtualNodeRpcUrl!,
+        clusterId: clusterId!,
+        standardizedTokenId: asset!.address, // NOTE: we're using the address field as the standardizedTokenId
+        amount: convertAmountToRawAmount(assetAmount, asset!.decimals),
+        recipient: {
+          address: toAddress!,
+          chainId: `EIP155-${chainId}`,
+        },
+      });
+
+      console.log('operationsToSend', operationsToSend);
+      setOperationSet(operationsToSend);
+    };
+
+    if (clusterId && virtualNodeRpcUrl && asset && assetAmount && toAddress) {
+      getSendDetails();
+    }
+  }, [asset, assetAmount, clusterId, toAddress, virtualNodeRpcUrl, chainId]);
+
   const handleSend = useCallback(
     async (callback?: () => void) => {
       if (!config.send_enabled) return;
 
       try {
-        if (asset) {
+        if (asset && operationSet) {
           const { type } = await getWallet(fromAddress);
           // Change the label while we wait for confirmation
           if (type === 'HardwareWalletKeychain') {
@@ -449,12 +478,7 @@ export function Send() {
           const { result } = await sendOrbyTransaction({
             virtualNodeRpcUrl: virtualNodeRpcUrl!,
             clusterId: clusterId!,
-            standardizedTokenId: asset.address, // NOTE: we're using the address field as the standardizedTokenId
-            amount: convertAmountToRawAmount(assetAmount, asset.decimals),
-            recipient: {
-              address: toAddress,
-              chainId: `EIP155-${chainId}`,
-            },
+            operationSet,
           });
 
           console.log('orbyTxResult', result);
@@ -717,6 +741,7 @@ export function Send() {
           />
           <AccentColorProvider color={assetAccentColor}>
             <ReviewSheet
+              operationSet={operationSet}
               show={showReviewSheet}
               onCancel={closeReviewSheet}
               onSend={handleSend}
