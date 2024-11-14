@@ -53,6 +53,7 @@ export const convertFungibleTokenToParsedUserAsset = (
         display: 'foo',
       },
     },
+    icon_url: fungibleToken.total.currency.logoUrl,
   };
 };
 
