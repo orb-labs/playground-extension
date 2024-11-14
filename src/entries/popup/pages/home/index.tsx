@@ -238,7 +238,7 @@ export const Home = memo(function Home() {
             <Tabs portfolio={portfolio} portfolioBalance={portfolioBalance} />
             <AppConnectionWalletSwitcher />
           </motion.div>
-          <NewTabBar />
+          {/* <NewTabBar /> */}
           <BackupReminder />
           {currentHomeSheet}
           <RevokeApproval />
