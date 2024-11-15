@@ -16,6 +16,8 @@ const PUBLIC_ORB_RPC_BASE = 'https://api-rpc-dev.orblabs.xyz';
 const PUBLIC_ORB_API_KEY = '4ff141e9-98c5-43ee-8b0e-d552f831b68e';
 const PRIVATE_ORB_API_KEY = 'f1c1d996-8df4-4d23-b926-ca702173021d';
 
+const GLOBAL = {};
+
 export const convertFungibleTokenToParsedUserAsset = (
   fungibleToken: any,
 ): ParsedUserAsset => {
@@ -289,10 +291,12 @@ export async function signOperationSet(operations) {
 }
 
 export const usePortfolio = (clusterId, virtualNodeRpcUrl) => {
-  const [portfolio, setPortfolio] = useState(null);
+  const [portfolio, setPortfolio] = useState(GLOBAL.PORTFOLIO || null);
+  const [loading, setLoading] = useState(GLOBAL.PORTFOLIO ? false : true);
 
   useEffect(() => {
     const fetchPortfolio = async () => {
+      setLoading(!GLOBAL.PORTFOLIO);
       const response = await fetch(virtualNodeRpcUrl, {
         method: 'POST',
         headers: {
@@ -306,15 +310,29 @@ export const usePortfolio = (clusterId, virtualNodeRpcUrl) => {
         }),
       });
       const { result } = await response.json();
+
+      // sort first by balance descending, then by symbol
+      result.fungibleTokenBalances.sort((a, b) => {
+        if (Number(b.total.amount) > Number(a.total.amount)) return 1;
+        if (Number(b.total.amount) < Number(a.total.amount)) return -1;
+
+        return a.total.currency.asset.symbol.localeCompare(
+          b.total.currency.asset.symbol,
+        );
+      });
+
       console.log('portfolio data', result);
+
+      GLOBAL.PORTFOLIO = result;
       setPortfolio(result);
+      setLoading(false);
     };
     if (clusterId && virtualNodeRpcUrl) {
       fetchPortfolio();
     }
   }, [clusterId, virtualNodeRpcUrl]);
 
-  return portfolio;
+  return { portfolio, loading };
 };
 
 export const usePortfolioBalance = (clusterId, virtualNodeRpcUrl) => {

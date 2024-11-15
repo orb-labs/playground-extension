@@ -418,7 +418,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     currentAddress,
     testnetMode,
   );
-  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
+  const { portfolio, loading } = usePortfolio(clusterId, virtualNodeRpcUrl);
   const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
 
   console.log('portfolio', portfolio);

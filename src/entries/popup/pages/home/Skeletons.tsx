@@ -6,7 +6,11 @@ import { Skeleton } from '~/design-system/components/Skeleton/Skeleton';
 export function TokensSkeleton() {
   const array = Array(6).fill(null);
   return (
-    <Box marginTop="-4px" style={{ height: 200, overflow: 'visible ' }}>
+    <Box
+      paddingTop="20px"
+      marginTop="-4px"
+      style={{ height: 200, overflow: 'visible ' }}
+    >
       <Inset horizontal="20px">
         <Stack space="16px">
           {array.map((_, index) => (
