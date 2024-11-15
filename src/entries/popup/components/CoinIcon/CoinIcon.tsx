@@ -167,6 +167,23 @@ function CoinIconWrapper({
   );
 }
 
+export function ChainIcon({ size, url, fallbackText }) {
+  if (url) {
+    return (
+      <CloudinaryCoinIcon size={size} url={url} fallbackText={fallbackText} />
+    );
+  }
+  return (
+    <Box
+      background="fillQuaternary"
+      borderColor="separatorTertiary"
+      borderRadius="round"
+      borderWidth="1px"
+      style={{ height: 36, width: 36 }}
+    />
+  );
+}
+
 const nftRadiusBySize = {
   14: '4px',
   16: '4px',

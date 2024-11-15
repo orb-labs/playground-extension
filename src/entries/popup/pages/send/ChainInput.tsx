@@ -13,6 +13,9 @@ import { DropdownInputWrapper } from '../../components/DropdownInputWrapper/Drop
 import { InputActionButton } from './InputActionButton';
 import { CursorTooltip } from '../../components/Tooltip/CursorTooltip';
 
+import backendNetworks from 'static/data/networks.json';
+import { ChainIcon } from '../../components/CoinIcon/CoinIcon';
+
 interface Chain {
   id: number;
   name: string;
@@ -29,6 +32,13 @@ interface ChainInputProps {
 interface InputRefAPI {
   blur: () => void;
   focus: () => void;
+}
+
+function getChainImage(chainId: number | undefined) {
+  if (!chainId) return null;
+
+  return backendNetworks.networks.find((n) => Number(n.id) === chainId)?.icons
+    .badgeURL;
 }
 
 export const ChainInput = React.forwardRef<InputRefAPI, ChainInputProps>(
@@ -97,12 +107,10 @@ export const ChainInput = React.forwardRef<InputRefAPI, ChainInputProps>(
           dropdownHeight={300}
           testId="chain-input"
           leftComponent={
-            <Box
-              background="fillQuaternary"
-              borderColor="separatorTertiary"
-              borderRadius="round"
-              borderWidth="1px"
-              style={{ height: 36, width: 36 }}
+            <ChainIcon
+              size={36}
+              url={getChainImage(selectedChain?.id)}
+              fallbackText={selectedChain?.name}
             />
           }
           centerComponent={
@@ -189,12 +197,10 @@ const ChainList = ({
           paddingBottom="8px"
         >
           <Inline alignVertical="center" space="8px">
-            <Box
-              background="fillQuaternary"
-              borderColor="separatorTertiary"
-              borderRadius="round"
-              borderWidth="1px"
-              style={{ height: 36, width: 36 }}
+            <ChainIcon
+              size={36}
+              url={getChainImage(chain.id)}
+              fallbackText={chain.name}
             />
             <Text size="14pt" color="labelSecondary" weight="semibold">
               {chain.name}
