@@ -67,6 +67,7 @@ const TOP_NAV_HEIGHT = 65;
 const Tabs = memo(function Tabs(props: {
   portfolio: any;
   portfolioBalance: any;
+  loading: boolean;
 }) {
   const { trackShortcut } = useKeyboardAnalytics();
   const { visibleTokenCount } = useVisibleTokenCount();
@@ -153,7 +154,11 @@ const Tabs = memo(function Tabs(props: {
         height="full"
       >
         {activeTab === 'tokens' && (
-          <Tokens portfolio={props.portfolio} scrollY={scrollY} />
+          <Tokens
+            portfolio={props.portfolio}
+            loading={props.loading}
+            scrollY={scrollY}
+          />
         )}
         {activeTab === 'activity' && <Activities />}
         {activeTab === 'nfts' && <NFTs />}
@@ -179,7 +184,7 @@ export const Home = memo(function Home() {
     currentAddress,
     testnetMode,
   );
-  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
+  const { portfolio, loading } = usePortfolio(clusterId, virtualNodeRpcUrl);
   const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
 
   useEffect(() => {
@@ -235,7 +240,11 @@ export const Home = memo(function Home() {
           >
             <TopNav />
             <Header />
-            <Tabs portfolio={portfolio} portfolioBalance={portfolioBalance} />
+            <Tabs
+              portfolio={portfolio}
+              portfolioBalance={portfolioBalance}
+              loading={loading}
+            />
             <AppConnectionWalletSwitcher />
           </motion.div>
           {/* <NewTabBar /> */}

@@ -63,9 +63,11 @@ import { convertFungibleTokenToParsedUserAsset } from '~/core/utils/orb';
 const TokenRow = memo(function TokenRow({
   token,
   testId,
+  key,
 }: {
   token: ParsedUserAsset;
   testId: string;
+  key: string;
 }) {
   const navigate = useRainbowNavigate();
   const openDetails = () => {
@@ -86,6 +88,7 @@ const TokenRow = memo(function TokenRow({
       width="full"
       layoutScroll
       layout="position"
+      key={key}
     >
       <TokenContextMenu token={token}>
         <Box
@@ -103,9 +106,11 @@ const TokenRow = memo(function TokenRow({
 export function Tokens({
   scrollY,
   portfolio,
+  loading,
 }: {
   scrollY: MotionValue<number>;
   portfolio: any;
+  loading: boolean;
 }) {
   const { currentAddress } = useCurrentAddressStore();
   const { currentCurrency: currency } = useCurrentCurrencyStore();
@@ -266,7 +271,11 @@ export function Tokens({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unhiddenAssets?.length]);
 
-  if ((isFetching && isPending) || manuallyRefetchingTokens) {
+  // if ((isFetching && isPending) || manuallyRefetchingTokens) {
+  //   return <TokensSkeleton />;
+  // }
+
+  if (loading) {
     return <TokensSkeleton />;
   }
 
@@ -312,8 +321,8 @@ export function Tokens({
             return (
               <TokenRow
                 token={token}
-                testId={`coin-row-item-${index}`}
-                key={fungibleToken.standardizedTokenId}
+                testId={`coin-row-item-${token.uniqueId}`}
+                key={token.uniqueId}
               />
             );
           })}
