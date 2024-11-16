@@ -42,6 +42,7 @@ import { CursorTooltip } from '../Tooltip/CursorTooltip';
 
 import { CustomGasSheet } from './CustomGasSheet';
 import { SwitchTransactionSpeedMenu } from './TransactionSpeedsMenu';
+import { SwitchGasTokenMenu } from './GasTokenMenu';
 
 type FeeProps = {
   chainId: ChainId;
@@ -130,6 +131,18 @@ function Fee({
     [analyticsEvents?.transactionSpeedClicked],
   );
 
+  // TODO: need to move this up higher to Send page so
+  // we can pass it to getOperationsToExecuteTransaction
+  // We'll also need to include the default gas token
+  const selectedGasToken = {
+    name: 'USDC',
+    id: '1',
+  };
+
+  const onGasTokenChanged = (newSelectedGasToken: any) => {
+    console.log('setSelectedGasToken', newSelectedGasToken);
+  };
+
   useKeyboardShortcut({
     handler: (e: KeyboardEvent) => {
       if (!disableShortcuts) {
@@ -179,17 +192,36 @@ function Fee({
             </Row>
             <Row>
               <Columns alignVertical="center" space="4px">
-                <Column width="content">
+                {/* <Column width="content">
                   <ChainBadge chainId={chainId} size="18" />
-                </Column>
+                </Column> */}
                 <Column width="content">
-                  <TextOverflow weight="semibold" color="label" size="14pt">
+                  {/* <SwitchTransactionSpeedMenu
+                    selectedSpeed={selectedSpeed}
+                    onSpeedChanged={onSpeedChanged}
+                    chainId={chainId}
+                    gasFeeParamsBySpeed={gasFeeParamsBySpeed}
+                    editable
+                    accentColor={accentColor}
+                    plainTriggerBorder={plainTriggerBorder}
+                    onOpenChange={onSpeedOpenChange}
+                    dropdownContentMarginRight={speedMenuMarginRight}
+                    ref={switchTransactionSpeedMenuRef}
+                  /> */}
+                  <SwitchGasTokenMenu
+                    selectedGasToken={selectedGasToken}
+                    onGasTokenChanged={onGasTokenChanged}
+                    editable
+                    plainTriggerBorder={false}
+                    dropdownContentMarginRight={speedMenuMarginRight}
+                  />
+                  {/* <TextOverflow weight="semibold" color="label" size="14pt">
                     {isLoading
                       ? '~'
                       : `${
                           gasFeeParamsForSelectedSpeed?.gasFee.display || '~'
                         }`}
-                  </TextOverflow>
+                  </TextOverflow> */}
                 </Column>
                 <Column>
                   <TextOverflow

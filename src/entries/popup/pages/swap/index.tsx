@@ -94,6 +94,7 @@ import {
   signOperationSet,
   sendSignedOperations,
 } from '~/core/utils/orb';
+import { consolidatedTransactionsQueryFunction } from '~/core/resources/transactions/consolidatedTransactions';
 
 const SwapWarning = ({
   timeEstimate,
@@ -562,6 +563,9 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     sellAmount: assetToSellValue,
     buyAmount: assetToBuyValue,
   });
+
+  console.log('assetToSell', assetToSell);
+  console.log('assetToBuy', assetToBuy);
 
   const {
     data: quote,
