@@ -73,6 +73,17 @@ export function SendTransaction({
   const { watchedWallets } = useWallets();
   const { featureFlags } = useFeatureFlagsStore();
 
+  console.log(
+    'activeSession?.chainId || ChainId.mainnet',
+    activeSession?.chainId || ChainId.mainnet,
+  );
+
+  const [selectedGasToken, setSelectedGasToken] = useState({
+    name: 'no gas abstraction',
+    id: '1',
+    isDefault: true,
+  });
+
   const { flashbotsEnabled } = useFlashbotsEnabledStore();
   const flashbotsEnabledGlobally =
     config.flashbots_enabled &&
@@ -289,6 +300,11 @@ export function SendTransaction({
     connectedToHardhatOp,
   ]);
 
+  console.log('fooooooo');
+
+  console.log('in send tx', selectedGasToken);
+  console.log('in send tx', setSelectedGasToken);
+
   return (
     <Box
       display="flex"
@@ -318,6 +334,8 @@ export function SendTransaction({
           transactionRequest={request?.params?.[0] as TransactionRequest}
           plainTriggerBorder
           flashbotsEnabled={flashbotsEnabledGlobally}
+          selectedGasToken={selectedGasToken}
+          setSelectedGasToken={setSelectedGasToken}
         />
         <SendTransactionActions
           session={activeSession}

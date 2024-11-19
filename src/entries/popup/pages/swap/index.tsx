@@ -431,6 +431,13 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
 
   console.log('assetsToSell', assetsToSell);
 
+  const [selectedGasToken, setSelectedGasToken] = useState({
+    name: 'no gas abstraction',
+    id: '-1', // this isn't used
+    isDefault: true,
+    // url is not used for default, instead we use the chain logo
+  });
+
   // translate based on the context, bridge or swap
   const translationContext = {
     Action: i18n.t(`swap._actions.${bridge ? 'Bridge' : 'Swap'}`),
@@ -1039,6 +1046,8 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
                         quoteServiceTime={getQuoteServiceTime({
                           quote: quote as CrosschainQuote,
                         })}
+                        selectedGasToken={selectedGasToken}
+                        setSelectedGasToken={setSelectedGasToken}
                       />
                     </Row>
                     <Row>

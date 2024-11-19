@@ -23,7 +23,7 @@ const sortBy = (by: SortMethod) => {
   }
 };
 
-export const useSendAsset = (props: { assets?: ParsedUserAsset[] }) => {
+export const useSendAsset = (props?: { assets?: ParsedUserAsset[] }) => {
   const { currentAddress: address } = useCurrentAddressStore();
   const { currentCurrency } = useCurrentCurrencyStore();
   const [sortMethod, setSortMethod] = useState<SortMethod>('token');
