@@ -109,15 +109,10 @@ import {
   usePortfolioBalance,
   useVirtualNodeRpcUrl,
   convertFungibleTokensToParsedUserAssets,
-  getOperationsToTransferToken,
   getOperationsToExecuteTransaction,
+  getAggregateFeeDisplayFromOperationSet,
 } from '~/core/utils/orb';
-import {
-  convertAmountToRawAmount,
-  toFixedDecimals,
-  formatFixedDecimals,
-  add,
-} from '~/core/utils/numbers';
+import { convertAmountToRawAmount } from '~/core/utils/numbers';
 
 const MAINNET_CHAINS = [
   { id: 1, name: 'Ethereum' },
@@ -446,25 +441,8 @@ export function Send() {
   const [operationSet, setOperationSet] = useState(null);
 
   console.log('operationSet', operationSet);
-  console.log(
-    'operationSet.aggregateOperationFeeinFiatCurrency',
-    operationSet?.aggregateOperationFeeinFiatCurrency,
-  );
 
-  const aggregateFee = operationSet
-    ? Number(
-        add(
-          formatUnits(
-            operationSet.aggregateOperationFeeInFiatCurrency.amount,
-            operationSet.aggregateOperationFeeInFiatCurrency.currency.decimals,
-          ),
-          formatUnits(
-            operationSet.aggregateNetworkFeeInFiatCurrency.amount,
-            operationSet.aggregateNetworkFeeInFiatCurrency.currency.decimals,
-          ),
-        ),
-      ).toFixed(4)
-    : '~';
+  const aggregateFee = getAggregateFeeDisplayFromOperationSet(operationSet);
 
   console.log('aggregateFee', aggregateFee);
 
@@ -475,6 +453,7 @@ export function Send() {
       const operationsToSend = await getOperationsToExecuteTransaction({
         virtualNodeRpcUrl: virtualNodeRpcUrl!,
         request: {
+          accountClusterId: clusterId!,
           to: toAddress!,
           value: convertAmountToRawAmount(assetAmount, asset!.decimals),
           data: data!,
