@@ -42,6 +42,7 @@ import { CursorTooltip } from '../Tooltip/CursorTooltip';
 
 import { CustomGasSheet } from './CustomGasSheet';
 import { SwitchTransactionSpeedMenu } from './TransactionSpeedsMenu';
+import { SwitchGasTokenMenu } from './GasTokenMenu';
 
 type FeeProps = {
   chainId: ChainId;
@@ -65,6 +66,9 @@ type FeeProps = {
   setCustomMaxBaseFee: (maxBaseFee?: string) => void;
   setCustomMaxPriorityFee: (maxPriorityFee?: string) => void;
   setCustomGasPrice: (gasPrice?: string) => void;
+  selectedGasToken: any;
+  setSelectedGasToken: (gasToken: any) => void;
+  aggregateFee: string;
 };
 
 function Fee({
@@ -85,6 +89,9 @@ function Fee({
   setCustomMaxBaseFee,
   setCustomMaxPriorityFee,
   setCustomGasPrice,
+  selectedGasToken,
+  setSelectedGasToken,
+  aggregateFee,
 }: FeeProps) {
   const { trackShortcut } = useKeyboardAnalytics();
   const [showCustomGasSheet, setShowCustomGasSheet] = useState(false);
@@ -129,6 +136,9 @@ function Fee({
     },
     [analyticsEvents?.transactionSpeedClicked],
   );
+
+  console.log('in tx fee', selectedGasToken);
+  console.log('in tx fee', setSelectedGasToken);
 
   useKeyboardShortcut({
     handler: (e: KeyboardEvent) => {
@@ -180,15 +190,8 @@ function Fee({
             <Row>
               <Columns alignVertical="center" space="4px">
                 <Column width="content">
-                  <ChainBadge chainId={chainId} size="18" />
-                </Column>
-                <Column width="content">
                   <TextOverflow weight="semibold" color="label" size="14pt">
-                    {isLoading
-                      ? '~'
-                      : `${
-                          gasFeeParamsForSelectedSpeed?.gasFee.display || '~'
-                        }`}
+                    ${aggregateFee}
                   </TextOverflow>
                 </Column>
                 <Column>
@@ -211,7 +214,15 @@ function Fee({
         </Column>
         <Column>
           <Inline space="6px" alignVertical="center" alignHorizontal="right">
-            <SwitchTransactionSpeedMenu
+            <SwitchGasTokenMenu
+              selectedGasToken={selectedGasToken}
+              onGasTokenChanged={setSelectedGasToken}
+              editable
+              plainTriggerBorder={false}
+              dropdownContentMarginRight={speedMenuMarginRight}
+              chainId={chainId}
+            />
+            {/* <SwitchTransactionSpeedMenu
               selectedSpeed={selectedSpeed}
               onSpeedChanged={onSpeedChanged}
               chainId={chainId}
@@ -250,7 +261,7 @@ function Fee({
                   size={12}
                 />
               </Lens>
-            </CursorTooltip>
+            </CursorTooltip> */}
           </Inline>
         </Column>
       </Columns>
@@ -272,6 +283,9 @@ type TransactionFeeProps = {
     transactionSpeedSwitched: keyof EventProperties;
     transactionSpeedClicked: keyof EventProperties;
   };
+  selectedGasToken: any;
+  setSelectedGasToken: (gasToken: any) => void;
+  aggregateFee: string;
 };
 
 export function TransactionFee({
@@ -284,6 +298,9 @@ export function TransactionFee({
   plainTriggerBorder,
   analyticsEvents,
   flashbotsEnabled,
+  selectedGasToken,
+  setSelectedGasToken,
+  aggregateFee,
 }: TransactionFeeProps) {
   const { defaultTxSpeed } = useDefaultTxSpeed({ chainId });
   const {
@@ -305,6 +322,8 @@ export function TransactionFee({
     flashbotsEnabled: !!flashbotsEnabled,
   });
 
+  console.log('in tx fee', selectedGasToken);
+
   return (
     <Fee
       analyticsEvents={analyticsEvents}
@@ -323,6 +342,9 @@ export function TransactionFee({
       baseFeeTrend={baseFeeTrend}
       flashbotsEnabled={!!flashbotsEnabled}
       feeType={feeType}
+      selectedGasToken={selectedGasToken}
+      setSelectedGasToken={setSelectedGasToken}
+      aggregateFee={aggregateFee}
     />
   );
 }
@@ -339,6 +361,9 @@ type SwapFeeProps = {
   flashbotsEnabled?: boolean;
   speedMenuMarginRight?: Space;
   quoteServiceTime?: number;
+  selectedGasToken: any;
+  setSelectedGasToken: (gasToken: any) => void;
+  aggregateFee: string;
 };
 
 export function SwapFee({
@@ -353,7 +378,11 @@ export function SwapFee({
   flashbotsEnabled,
   speedMenuMarginRight,
   quoteServiceTime,
+  selectedGasToken,
+  setSelectedGasToken,
+  aggregateFee,
 }: SwapFeeProps) {
+  console.log('in swap fee');
   const { defaultTxSpeed } = useDefaultTxSpeed({ chainId });
   const {
     selectedSpeed,
@@ -394,6 +423,9 @@ export function SwapFee({
       flashbotsEnabled={!!flashbotsEnabled}
       speedMenuMarginRight={speedMenuMarginRight}
       feeType={feeType}
+      selectedGasToken={selectedGasToken}
+      setSelectedGasToken={setSelectedGasToken}
+      aggregateFee={aggregateFee}
     />
   );
 }
@@ -414,6 +446,9 @@ type ApprovalFeeProps = {
     transactionSpeedClicked: keyof EventProperties;
   };
   assetType: 'erc20' | 'nft';
+  selectedGasToken: any;
+  setSelectedGasToken: (gasToken: any) => void;
+  aggregateFee: string;
 };
 
 export function ApprovalFee({
@@ -428,7 +463,11 @@ export function ApprovalFee({
   analyticsEvents,
   flashbotsEnabled,
   assetType,
+  selectedGasToken,
+  setSelectedGasToken,
+  aggregateFee,
 }: ApprovalFeeProps) {
+  console.log('in approval fee');
   const { defaultTxSpeed } = useDefaultTxSpeed({ chainId });
   const {
     selectedSpeed,
@@ -468,6 +507,9 @@ export function ApprovalFee({
       baseFeeTrend={baseFeeTrend}
       flashbotsEnabled={!!flashbotsEnabled}
       feeType={feeType}
+      selectedGasToken={selectedGasToken}
+      setSelectedGasToken={setSelectedGasToken}
+      aggregateFee={aggregateFee}
     />
   );
 }

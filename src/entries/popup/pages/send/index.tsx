@@ -12,7 +12,7 @@ import {
   useState,
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Address, isAddress } from 'viem';
+import { Address, isAddress, formatUnits } from 'viem';
 
 import { analytics } from '~/analytics';
 import { event } from '~/analytics/event';
@@ -110,8 +110,14 @@ import {
   useVirtualNodeRpcUrl,
   convertFungibleTokensToParsedUserAssets,
   getOperationsToTransferToken,
+  getOperationsToExecuteTransaction,
 } from '~/core/utils/orb';
-import { convertAmountToRawAmount } from '~/core/utils/numbers';
+import {
+  convertAmountToRawAmount,
+  toFixedDecimals,
+  formatFixedDecimals,
+  add,
+} from '~/core/utils/numbers';
 
 const MAINNET_CHAINS = [
   { id: 1, name: 'Ethereum' },
@@ -157,6 +163,13 @@ export function Send() {
   const { allWallets } = useWallets();
   const { hidden } = useHiddenAssetStore();
   const [urlSearchParams] = useSearchParams();
+
+  const [selectedGasToken, setSelectedGasToken] = useState({
+    name: 'no gas abstraction',
+    id: '-1', // this isn't used
+    isDefault: true,
+    // url is not used for default, instead we use the chain logo
+  });
 
   const queryToAddress = urlSearchParams.get('to');
   const validatedQueryToAddress = isAddress(queryToAddress as Address)
@@ -432,18 +445,42 @@ export function Send() {
 
   const [operationSet, setOperationSet] = useState(null);
 
+  console.log('operationSet', operationSet);
+  console.log(
+    'operationSet.aggregateOperationFeeinFiatCurrency',
+    operationSet?.aggregateOperationFeeinFiatCurrency,
+  );
+
+  const aggregateFee = operationSet
+    ? Number(
+        add(
+          formatUnits(
+            operationSet.aggregateOperationFeeInFiatCurrency.amount,
+            operationSet.aggregateOperationFeeInFiatCurrency.currency.decimals,
+          ),
+          formatUnits(
+            operationSet.aggregateNetworkFeeInFiatCurrency.amount,
+            operationSet.aggregateNetworkFeeInFiatCurrency.currency.decimals,
+          ),
+        ),
+      ).toFixed(4)
+    : '~';
+
+  console.log('aggregateFee', aggregateFee);
+
   useEffect(() => {
     const getSendDetails = async () => {
       console.log('in here');
 
-      const operationsToSend = await getOperationsToTransferToken({
+      const operationsToSend = await getOperationsToExecuteTransaction({
         virtualNodeRpcUrl: virtualNodeRpcUrl!,
-        clusterId: clusterId!,
-        standardizedTokenId: asset!.address, // NOTE: we're using the address field as the standardizedTokenId
-        amount: convertAmountToRawAmount(assetAmount, asset!.decimals),
-        recipient: {
-          address: toAddress!,
-          chainId: `EIP155-${chainId}`,
+        request: {
+          to: toAddress!,
+          value: convertAmountToRawAmount(assetAmount, asset!.decimals),
+          data: data!,
+          ...(selectedGasToken.isDefault
+            ? {}
+            : { gasToken: { standardizedTokenId: selectedGasToken.id } }),
         },
       });
 
@@ -451,10 +488,27 @@ export function Send() {
       setOperationSet(operationsToSend);
     };
 
-    if (clusterId && virtualNodeRpcUrl && asset && assetAmount && toAddress) {
+    if (
+      clusterId &&
+      virtualNodeRpcUrl &&
+      asset &&
+      assetAmount &&
+      toAddress &&
+      data &&
+      selectedGasToken
+    ) {
       getSendDetails();
     }
-  }, [asset, assetAmount, clusterId, toAddress, virtualNodeRpcUrl, chainId]);
+  }, [
+    asset,
+    assetAmount,
+    clusterId,
+    toAddress,
+    virtualNodeRpcUrl,
+    chainId,
+    data,
+    selectedGasToken,
+  ]);
 
   const handleSend = useCallback(
     async (callback?: () => void) => {
@@ -895,6 +949,9 @@ export function Send() {
                         transactionRequest={transactionRequestForGas}
                         accentColor={assetAccentColor}
                         flashbotsEnabled={flashbotsEnabledGlobally}
+                        selectedGasToken={selectedGasToken}
+                        setSelectedGasToken={setSelectedGasToken}
+                        aggregateFee={aggregateFee}
                       />
                     </Row>
                     <Row>

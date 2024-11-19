@@ -93,7 +93,9 @@ import {
   getOperationsToSwap,
   signOperationSet,
   sendSignedOperations,
+  getOperationsToExecuteTransaction,
 } from '~/core/utils/orb';
+import { consolidatedTransactionsQueryFunction } from '~/core/resources/transactions/consolidatedTransactions';
 
 const SwapWarning = ({
   timeEstimate,
@@ -430,6 +432,13 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
 
   console.log('assetsToSell', assetsToSell);
 
+  const [selectedGasToken, setSelectedGasToken] = useState({
+    name: 'no gas abstraction',
+    id: '-1', // this isn't used
+    isDefault: true,
+    // url is not used for default, instead we use the chain logo
+  });
+
   // translate based on the context, bridge or swap
   const translationContext = {
     Action: i18n.t(`swap._actions.${bridge ? 'Bridge' : 'Swap'}`),
@@ -562,6 +571,9 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     sellAmount: assetToSellValue,
     buyAmount: assetToBuyValue,
   });
+
+  console.log('assetToSell', assetToSell);
+  console.log('assetToBuy', assetToBuy);
 
   const {
     data: quote,
@@ -755,36 +767,23 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   useEffect(() => {
     const getSwapDetails = async () => {
       console.log('in here');
-      const outputStandardizedTokenId = await getStandardizedTokenId({
-        virtualNodeRpcUrl,
-        chainId: `EIP155-${assetToBuy?.chainId}`,
-        tokenAddress: assetToBuy?.address as Address,
+
+      console.log('quote', quote);
+
+      const operationsToSwap = await getOperationsToExecuteTransaction({
+        virtualNodeRpcUrl: virtualNodeRpcUrl!,
+        request: {
+          to: quote!.to,
+          value: quote!.value,
+          data: quote!.data,
+          ...(selectedGasToken.isDefault
+            ? {}
+            : { gasToken: { standardizedTokenId: selectedGasToken.id } }),
+        },
       });
 
-      console.log('standardizedTokenId', outputStandardizedTokenId);
-
-      if (outputStandardizedTokenId) {
-        const operationsToSwap = await getOperationsToSwap({
-          virtualNodeRpcUrl,
-          clusterId,
-          swapType: 'EXACT_INPUT',
-          input: {
-            standardizedTokenId: assetToSell.address,
-            amount: Number(
-              convertAmountToRawAmount(assetToSellValue, assetToSell.decimals),
-            ),
-          },
-          output: {
-            standardizedTokenId: outputStandardizedTokenId,
-            // amount: Number(
-            //   convertAmountToRawAmount(assetToBuyValue, assetToBuy.decimals),
-            // ),
-          },
-        });
-
-        console.log('operationsToSwap', operationsToSwap);
-        setOperationSet(operationsToSwap);
-      }
+      console.log('operationsToSwap', operationsToSwap);
+      setOperationSet(operationsToSwap);
     };
 
     console.log('assetToBuy', assetToBuy);
@@ -795,7 +794,9 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
       assetToSell &&
       virtualNodeRpcUrl &&
       assetToBuyValue &&
-      assetToSellValue
+      assetToSellValue &&
+      quote &&
+      selectedGasToken
     ) {
       getSwapDetails();
     }
@@ -806,6 +807,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     assetToBuyValue,
     assetToSellValue,
     clusterId,
+    quote,
   ]);
 
   console.log('assetToSell', assetToSell);
@@ -1035,6 +1037,8 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
                         quoteServiceTime={getQuoteServiceTime({
                           quote: quote as CrosschainQuote,
                         })}
+                        selectedGasToken={selectedGasToken}
+                        setSelectedGasToken={setSelectedGasToken}
                       />
                     </Row>
                     <Row>

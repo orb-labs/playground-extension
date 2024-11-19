@@ -73,6 +73,17 @@ export function SendTransaction({
   const { watchedWallets } = useWallets();
   const { featureFlags } = useFeatureFlagsStore();
 
+  console.log(
+    'activeSession?.chainId || ChainId.mainnet',
+    activeSession?.chainId || ChainId.mainnet,
+  );
+
+  const [selectedGasToken, setSelectedGasToken] = useState({
+    name: 'no gas abstraction',
+    id: '1',
+    isDefault: true,
+  });
+
   const { flashbotsEnabled } = useFlashbotsEnabledStore();
   const flashbotsEnabledGlobally =
     config.flashbots_enabled &&
@@ -118,20 +129,23 @@ export function SendTransaction({
       setOperations(operations);
     };
 
-    if (clusterId && virtualNodeRpcUrl && request) {
+    if (clusterId && virtualNodeRpcUrl && request && selectedGasToken) {
       const txRequest = request?.params?.[0] as TransactionRequest;
 
       const txData = {
         value: txRequest.value || '0x0',
         to: txRequest?.to ? (getAddress(txRequest?.to) as Address) : undefined,
         data: txRequest.data ?? '0x',
+        ...(selectedGasToken.isDefault
+          ? {}
+          : { gasToken: { standardizedTokenId: selectedGasToken.id } }),
       };
 
       console.log('before get operations');
 
       getOperations({ virtualNodeRpcUrl, request: txData });
     }
-  }, [clusterId, virtualNodeRpcUrl, request]);
+  }, [clusterId, virtualNodeRpcUrl, request, selectedGasToken]);
 
   // TODO: create hook for orby_getOperationsToExecuteTransaction here and display the operations
 
@@ -289,6 +303,11 @@ export function SendTransaction({
     connectedToHardhatOp,
   ]);
 
+  console.log('fooooooo');
+
+  console.log('in send tx', selectedGasToken);
+  console.log('in send tx', setSelectedGasToken);
+
   return (
     <Box
       display="flex"
@@ -318,6 +337,8 @@ export function SendTransaction({
           transactionRequest={request?.params?.[0] as TransactionRequest}
           plainTriggerBorder
           flashbotsEnabled={flashbotsEnabledGlobally}
+          selectedGasToken={selectedGasToken}
+          setSelectedGasToken={setSelectedGasToken}
         />
         <SendTransactionActions
           session={activeSession}
