@@ -434,7 +434,7 @@ export const SendTokenInput = React.forwardRef<
           <NFTIcon asset={nft} size={36} badge={true} />
         ) : (
           <AssetContextMenu asset={asset}>
-            <CoinIcon asset={asset ?? undefined} />
+            <CoinIcon asset={asset ?? undefined} badge={false} />
           </AssetContextMenu>
         )
       }

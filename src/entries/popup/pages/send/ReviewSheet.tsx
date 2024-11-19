@@ -256,6 +256,7 @@ export const ReviewSheet = ({
   onSend,
   onSaveContactAction,
   operationSet,
+  chainId,
 }: {
   show: boolean;
   toAddress: Address;
@@ -273,6 +274,7 @@ export const ReviewSheet = ({
     }>
   >;
   operationSet: any;
+  chainId: any;
 }) => {
   const { visibleOwnedWallets } = useWallets();
   const [notSendingOnEthereumChecks, setNotSendingOnEthereumChecks] =
@@ -301,8 +303,10 @@ export const ReviewSheet = ({
     [chain?.id],
   );
 
-  const chainName =
-    chainsLabel[asset?.chainId || ChainId.mainnet] || chain?.name;
+  // const chainName =
+  // chainsLabel[asset?.chainId || ChainId.mainnet] || chain?.name;
+
+  const chainName = chainsLabel[chainId];
 
   const isToWalletOwner = useMemo(
     () =>
@@ -462,7 +466,7 @@ export const ReviewSheet = ({
                                 <NFTIcon asset={nft} size={44} badge={true} />
                               </Box>
                             ) : (
-                              <CoinIcon asset={asset} size={44} />
+                              <CoinIcon asset={asset} size={44} badge={false} />
                             )}
                           </Box>
                         </Inline>

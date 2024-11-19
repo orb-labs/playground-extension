@@ -112,6 +112,7 @@ export const TokenToBuyInput = forwardRef(function TokenToBuyInput(
 
   return (
     <TokenInput
+      badge
       testId={`${assetToBuy ? `${assetToBuy.uniqueId}-` : ''}token-to-buy`}
       inputRef={inputRef}
       accentCaretColor
