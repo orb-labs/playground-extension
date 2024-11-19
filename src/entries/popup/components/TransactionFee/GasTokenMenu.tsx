@@ -36,13 +36,13 @@ const gasTokens = [
   },
   {
     name: 'USDC',
-    id: '2', // update with the standardized token id
+    id: 'sttkn_1e58ac683b9e4d28b1b4193f69c49d12',
     isDefault: false,
     url: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.svg',
   },
   {
     name: 'WETH',
-    id: '3', // update with the standardized token id
+    id: 'sttkn_fe26388df9394694ad49acb77547e334',
     isDefault: false,
     url: 'https://raw.githubusercontent.com/rainbow-me/assets/master/blockchains/base/assets/0x4200000000000000000000000000000000000006/logo.png',
   },
