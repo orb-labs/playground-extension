@@ -465,6 +465,7 @@ export const AssetRow = memo(function AssetRow({
       asset={asset}
       topRow={topRow}
       bottomRow={bottomRow}
+      badge={false}
     />
   );
 });

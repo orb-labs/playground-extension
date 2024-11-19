@@ -806,6 +806,7 @@ export function Send() {
               secondaryAmountDisplay={dependentAmountDisplay.display}
               onSaveContactAction={setSaveContactAction}
               waitingForDevice={waitingForDevice}
+              chainId={chainId}
             />
           </AccentColorProvider>
         </>

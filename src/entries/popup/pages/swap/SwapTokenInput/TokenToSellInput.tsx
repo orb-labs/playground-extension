@@ -103,6 +103,7 @@ export const TokenToSellInput = ({
 
   return (
     <TokenInput
+      badge={false}
       testId={`${asset ? `${asset.uniqueId}-` : ''}token-to-sell`}
       inputRef={inputRef}
       accentCaretColor

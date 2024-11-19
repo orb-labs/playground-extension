@@ -82,6 +82,7 @@ interface TokenInputProps {
   setAssetFilter: React.Dispatch<React.SetStateAction<string>>;
   setValue: (value: string) => void;
   onFocus?: () => void;
+  badge: boolean;
 }
 
 export type TokenInputRef = { openDropdown: (skipAnimation?: boolean) => void };
@@ -113,6 +114,7 @@ export const TokenInput = React.forwardRef<
     setAssetFilter,
     setValue,
     onFocus,
+    badge,
   }: TokenInputProps,
   forwardedRef,
 ) {
@@ -191,7 +193,7 @@ export const TokenInput = React.forwardRef<
       testId={`${testId}-token-input`}
       leftComponent={
         <AssetContextMenu asset={asset}>
-          <CoinIcon asset={asset ?? undefined} />
+          <CoinIcon asset={asset ?? undefined} badge={badge} />
         </AssetContextMenu>
       }
       centerComponent={

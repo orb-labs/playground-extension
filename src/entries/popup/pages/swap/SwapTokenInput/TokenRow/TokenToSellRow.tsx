@@ -115,7 +115,7 @@ export function TokenToSellRow({ asset }) {
               <Row>
                 <Columns alignVertical="center" space="8px">
                   <Column width="content">
-                    <CoinIcon asset={asset} />
+                    <CoinIcon asset={asset} badge={false} />
                   </Column>
                   <Column>{leftColumn}</Column>
                   <Column width="content">{rightColumn}</Column>
