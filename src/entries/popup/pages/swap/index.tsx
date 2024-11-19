@@ -89,13 +89,11 @@ import {
   usePortfolioBalance,
   useVirtualNodeRpcUrl,
   convertFungibleTokensToParsedUserAssets,
-  getStandardizedTokenId,
-  getOperationsToSwap,
   signOperationSet,
   sendSignedOperations,
   getOperationsToExecuteTransaction,
+  getAggregateFeeDisplayFromOperationSet,
 } from '~/core/utils/orb';
-import { consolidatedTransactionsQueryFunction } from '~/core/resources/transactions/consolidatedTransactions';
 
 const SwapWarning = ({
   timeEstimate,
@@ -764,6 +762,8 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
 
   const [operationSet, setOperationSet] = useState(null);
 
+  const aggregateFee = getAggregateFeeDisplayFromOperationSet(operationSet);
+
   useEffect(() => {
     const getSwapDetails = async () => {
       console.log('in here');
@@ -773,6 +773,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
       const operationsToSwap = await getOperationsToExecuteTransaction({
         virtualNodeRpcUrl: virtualNodeRpcUrl!,
         request: {
+          accountClusterId: clusterId!,
           to: quote!.to,
           value: quote!.value,
           data: quote!.data,
@@ -790,6 +791,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     console.log('assetToSell', assetToSell);
     console.log('virtualNodeRpcUrl', virtualNodeRpcUrl);
     if (
+      clusterId &&
       assetToBuy &&
       assetToSell &&
       virtualNodeRpcUrl &&
@@ -808,6 +810,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     assetToSellValue,
     clusterId,
     quote,
+    clusterId,
   ]);
 
   console.log('assetToSell', assetToSell);
@@ -1039,6 +1042,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
                         })}
                         selectedGasToken={selectedGasToken}
                         setSelectedGasToken={setSelectedGasToken}
+                        aggregateFee={aggregateFee}
                       />
                     </Row>
                     <Row>

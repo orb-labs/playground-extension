@@ -47,8 +47,6 @@ import {
 import { walletAction } from './walletAction';
 import { HARDWARE_WALLETS } from './walletVariables';
 
-import { getOperationsToTransferToken } from '~/core/utils/orb';
-
 const signMessageByType = async (
   msgData: string | Bytes,
   address: Address,

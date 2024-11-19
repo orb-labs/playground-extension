@@ -38,6 +38,7 @@ import {
   getOperationsToExecuteTransaction,
   signOperationSet,
   sendSignedOperations,
+  getAggregateFeeDisplayFromOperationSet,
 } from '~/core/utils/orb';
 
 import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
@@ -104,9 +105,13 @@ export function SendTransaction({
   console.log('clusterId', clusterId);
   console.log('virtualNodeRpcUrl', virtualNodeRpcUrl);
 
+  const [operationSet, setOperationSet] = useState(null);
   const [operations, setOperations] = useState(null);
 
   console.log('operations', operations);
+  console.log('operationSet', operationSet);
+
+  const aggregateFee = getAggregateFeeDisplayFromOperationSet(operationSet);
 
   useEffect(() => {
     console.log('in useEffect');
@@ -127,12 +132,14 @@ export function SendTransaction({
       console.log('operations before setting', operations);
 
       setOperations(operations);
+      setOperationSet(operationSet);
     };
 
     if (clusterId && virtualNodeRpcUrl && request && selectedGasToken) {
       const txRequest = request?.params?.[0] as TransactionRequest;
 
       const txData = {
+        accountClusterId: clusterId!,
         value: txRequest.value || '0x0',
         to: txRequest?.to ? (getAddress(txRequest?.to) as Address) : undefined,
         data: txRequest.data ?? '0x',
@@ -339,6 +346,7 @@ export function SendTransaction({
           flashbotsEnabled={flashbotsEnabledGlobally}
           selectedGasToken={selectedGasToken}
           setSelectedGasToken={setSelectedGasToken}
+          aggregateFee={aggregateFee}
         />
         <SendTransactionActions
           session={activeSession}

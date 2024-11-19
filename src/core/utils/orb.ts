@@ -3,14 +3,9 @@ import { useEffect, useState } from 'react';
 import { Address, formatUnits } from 'viem';
 
 import { keychainManager } from '~/core/keychain/KeychainManager';
-
 import { ParsedUserAsset } from '~/core/types/assets';
 import { ChainId, ChainName } from '~/core/types/chains';
-import {
-  convertAmountToRawAmount,
-  toFixedDecimals,
-  formatFixedDecimals,
-} from '~/core/utils/numbers';
+import { add } from '~/core/utils/numbers';
 
 const PUBLIC_ORB_RPC_BASE = 'https://api-rpc-dev.orblabs.xyz';
 const PUBLIC_ORB_API_KEY = '4ff141e9-98c5-43ee-8b0e-d552f831b68e';
@@ -65,6 +60,26 @@ export const convertFungibleTokensToParsedUserAssets = (
   return fungibleTokens.map((fungibleToken) => {
     return convertFungibleTokenToParsedUserAsset(fungibleToken);
   });
+};
+
+export const getAggregateFeeDisplayFromOperationSet = (operationSet: any) => {
+  console.log('operationSet in the helper function', operationSet);
+  return operationSet &&
+    operationSet.aggregateOperationFeeInFiatCurrency &&
+    operationSet.aggregateNetworkFeeInFiatCurrency
+    ? Number(
+        add(
+          formatUnits(
+            operationSet.aggregateOperationFeeInFiatCurrency.amount,
+            operationSet.aggregateOperationFeeInFiatCurrency.currency.decimals,
+          ),
+          formatUnits(
+            operationSet.aggregateNetworkFeeInFiatCurrency.amount,
+            operationSet.aggregateNetworkFeeInFiatCurrency.currency.decimals,
+          ),
+        ),
+      ).toFixed(4)
+    : '~';
 };
 
 export const useCreateClusterId = (currentAddress) => {
@@ -157,6 +172,7 @@ export const getOperationsToExecuteTransaction = async ({
     to: string;
     data: string;
     value: string;
+    accountClusterId: string;
   };
 }) => {
   const response = await fetch(virtualNodeRpcUrl, {
