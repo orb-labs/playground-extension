@@ -32,8 +32,8 @@ export const convertFungibleTokenToParsedUserAsset = (
     // NOTE: we use the address from the fungible token here to be able to select the token
     // It doesn't seem to break anything yet, but we'll need to change this if it does
     address: fungibleToken.standardizedTokenId as Address,
-    chainId: ChainId.mainnet,
-    chainName: ChainName.mainnet,
+    chainId: ChainId.arbitrum,
+    chainName: ChainName.arbitrum,
     balance: {
       amount: formatUnits(
         fungibleToken.total.amount,

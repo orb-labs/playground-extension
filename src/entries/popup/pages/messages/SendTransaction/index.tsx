@@ -129,20 +129,23 @@ export function SendTransaction({
       setOperations(operations);
     };
 
-    if (clusterId && virtualNodeRpcUrl && request) {
+    if (clusterId && virtualNodeRpcUrl && request && selectedGasToken) {
       const txRequest = request?.params?.[0] as TransactionRequest;
 
       const txData = {
         value: txRequest.value || '0x0',
         to: txRequest?.to ? (getAddress(txRequest?.to) as Address) : undefined,
         data: txRequest.data ?? '0x',
+        ...(selectedGasToken.isDefault
+          ? {}
+          : { gasToken: { standardizedTokenId: selectedGasToken.id } }),
       };
 
       console.log('before get operations');
 
       getOperations({ virtualNodeRpcUrl, request: txData });
     }
-  }, [clusterId, virtualNodeRpcUrl, request]);
+  }, [clusterId, virtualNodeRpcUrl, request, selectedGasToken]);
 
   // TODO: create hook for orby_getOperationsToExecuteTransaction here and display the operations
 

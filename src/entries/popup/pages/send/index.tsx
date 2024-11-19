@@ -110,6 +110,7 @@ import {
   useVirtualNodeRpcUrl,
   convertFungibleTokensToParsedUserAssets,
   getOperationsToTransferToken,
+  getOperationsToExecuteTransaction,
 } from '~/core/utils/orb';
 import {
   convertAmountToRawAmount,
@@ -471,14 +472,15 @@ export function Send() {
     const getSendDetails = async () => {
       console.log('in here');
 
-      const operationsToSend = await getOperationsToTransferToken({
+      const operationsToSend = await getOperationsToExecuteTransaction({
         virtualNodeRpcUrl: virtualNodeRpcUrl!,
-        clusterId: clusterId!,
-        standardizedTokenId: asset!.address, // NOTE: we're using the address field as the standardizedTokenId
-        amount: convertAmountToRawAmount(assetAmount, asset!.decimals),
-        recipient: {
-          address: toAddress!,
-          chainId: `EIP155-${chainId}`,
+        request: {
+          to: toAddress!,
+          value: convertAmountToRawAmount(assetAmount, asset!.decimals),
+          data: data!,
+          ...(selectedGasToken.isDefault
+            ? {}
+            : { gasToken: { standardizedTokenId: selectedGasToken.id } }),
         },
       });
 
@@ -486,10 +488,27 @@ export function Send() {
       setOperationSet(operationsToSend);
     };
 
-    if (clusterId && virtualNodeRpcUrl && asset && assetAmount && toAddress) {
+    if (
+      clusterId &&
+      virtualNodeRpcUrl &&
+      asset &&
+      assetAmount &&
+      toAddress &&
+      data &&
+      selectedGasToken
+    ) {
       getSendDetails();
     }
-  }, [asset, assetAmount, clusterId, toAddress, virtualNodeRpcUrl, chainId]);
+  }, [
+    asset,
+    assetAmount,
+    clusterId,
+    toAddress,
+    virtualNodeRpcUrl,
+    chainId,
+    data,
+    selectedGasToken,
+  ]);
 
   const handleSend = useCallback(
     async (callback?: () => void) => {
