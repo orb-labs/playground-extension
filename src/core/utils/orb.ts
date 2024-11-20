@@ -493,3 +493,370 @@ export const getStandardizedTokenId = async ({
   // TODO: get the first one
   return result?.standardizedTokenIds?.[0] || null;
 };
+
+/* DATA INJECTION HELPERS BELOW */
+
+// Function that updates the virtual node rpc url in storage.
+export function updateVirtualNodeRpcUrl(virtualNodeRpcUrl: string) {
+  chrome.runtime.sendMessage({
+    type: 'ORBY_UPDATE_VIRTUAL_NODE_RPC_URL',
+    data: { virtualNodeRpcUrl: virtualNodeRpcUrl },
+  });
+}
+
+// Function that updates the status of a connected app i.e. whether the wallet is still connected to the app or not.
+export function updateConnectedAppStatus(
+  appDomain: string,
+  isConnected: boolean,
+) {
+  try {
+    chrome.runtime.sendMessage({
+      type: 'ORBY_UPDATE_APP_CONNECTION_STATUS',
+      data: {
+        appDomain: new URL(appDomain).hostname,
+        isConnected: isConnected,
+      },
+    });
+  } catch {
+    chrome.runtime.sendMessage({
+      type: 'ORBY_UPDATE_APP_CONNECTION_STATUS',
+      data: { appDomain: appDomain, isConnected: isConnected },
+    });
+  }
+}
+
+// Function that initializes listeners for enabling unified balances on dapps.
+export async function useUnifiedBalancesOnApps(
+  reloadOnAppConnectedStatusChange: boolean,
+  dataInjectorPath: string,
+  getCurrentConfigs?: (response?: any) => void,
+) {
+  const reloadEnabled = reloadOnAppConnectedStatusChange;
+  const dataInjectorScriptPath = dataInjectorPath;
+  const data = await chrome.storage.local.get([
+    'orbyVirtualNodeRpcUrl',
+    'orbyConnectedApps',
+  ]);
+
+  let virtualNodeRpcUrl: string = data.orbyVirtualNodeRpcUrl || '';
+  const connectedApps: Map<string, boolean> = new Map(
+    Object.entries(data.orbyConnectedApps || {}),
+  );
+  const orbySupportedChains: Map<string, boolean> = new Map();
+  const dataInjectionRules: Map<string, any> = new Map();
+  getCurrentConfigs?.({
+    virtualNodeRpcUrl,
+    orbySupportedChains,
+    connectedApps,
+    dataInjectionRules,
+  });
+
+  if (virtualNodeRpcUrl) {
+    getOrbySupportedChains(virtualNodeRpcUrl, orbySupportedChains);
+    connectedApps.forEach((_value, key) => {
+      getDataInjectionRulesForApp(virtualNodeRpcUrl, key, dataInjectionRules);
+    });
+  }
+
+  // Add listener for receiving requests
+  chrome.runtime.onMessage.addListener(
+    async (message, sender, sendResponse) => {
+      if (sender.id !== chrome.runtime.id) return;
+      if (message.type && message.type === 'ORBY_DATA_INJECTION_REQUEST') {
+        await handleOrbyDataInjectionRequest(
+          virtualNodeRpcUrl,
+          message,
+          connectedApps,
+          dataInjectionRules,
+          orbySupportedChains,
+          sendResponse,
+        );
+      } else if (message.type === 'ORBY_UPDATE_VIRTUAL_NODE_RPC_URL') {
+        const noVirtualNodeRpcUrl = virtualNodeRpcUrl ? false : true;
+        virtualNodeRpcUrl = message.data.virtualNodeRpcUrl;
+        chrome.storage.local.set({ orbyVirtualNodeRpcUrl: virtualNodeRpcUrl });
+        if (noVirtualNodeRpcUrl) {
+          await getOrbySupportedChains(virtualNodeRpcUrl, orbySupportedChains);
+          connectedApps.forEach((_value, key) => {
+            getDataInjectionRulesForApp(
+              virtualNodeRpcUrl,
+              key,
+              dataInjectionRules,
+            );
+          });
+        }
+      } else if (message.type === 'ORBY_UPDATE_APP_CONNECTION_STATUS') {
+        await handleConnectedAppStatusUpdate(
+          virtualNodeRpcUrl,
+          message.data.appDomain,
+          message.data.isConnected,
+          connectedApps,
+          dataInjectionRules,
+        );
+        chrome.storage.local.set({
+          orbyConnectedApps: Object.fromEntries(connectedApps),
+        });
+        reloadTabsRelatedToDomain(reloadEnabled, message.data.appDomain);
+        sendResponse({ success: true });
+      }
+      return true;
+    },
+  );
+
+  // Add listener for adding data injection script to connected apps
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'loading' && tab.url) {
+      const appDomain = new URL(tab.url).hostname;
+      if (connectedApps.get(appDomain)) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: addDataInjectionScriptToApp,
+          args: [
+            {
+              dataInjectionScript: dataInjectorScriptPath,
+              dataInjectionRuleForApp: dataInjectionRules.get(appDomain),
+            },
+          ],
+        });
+      } else {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: addReloadScriptToApp,
+        });
+      }
+    }
+  });
+}
+
+// Function that allows us to reload all connected tabs
+async function reloadTabsRelatedToDomain(reload: boolean, appDomain: string) {
+  if (reload) {
+    chrome.tabs.query({ url: `*://*.${appDomain}/*` }, (tabs) => {
+      tabs.forEach((tab) => {
+        chrome.tabs.sendMessage(tab.id, { action: 'ORBY_RELOAD_PAGE' });
+      });
+    });
+  }
+}
+
+// Function that handles orby data injection requests.
+async function handleOrbyDataInjectionRequest(
+  rpcUrl: string,
+  message: any,
+  connectedAppsMap: any,
+  dataInjectionRulesMap: any,
+  orbySupportedChains: any,
+  sendResponse: (response?: any) => void,
+) {
+  if (connectedAppsMap.get(message.appDomain) ? true : false) {
+    if (message.action && message.action === 'getDataInjectionRuleForApp') {
+      const response = await getDataInjectionRulesForApp(
+        rpcUrl,
+        message.appDomain,
+        dataInjectionRulesMap,
+      );
+      sendResponse(response);
+    } else if (
+      message.action &&
+      message.action === 'processDataInjectionRequest'
+    ) {
+      const response = await processDataInjectionRequest(
+        rpcUrl,
+        message,
+        orbySupportedChains,
+      );
+      sendResponse(response);
+    }
+  }
+}
+
+// Function that handles connected app status updates.
+async function handleConnectedAppStatusUpdate(
+  rpcUrl: string,
+  appDomain: string,
+  isConnected: boolean,
+  connectedAppsMap: any,
+  dataInjectionRulesMap: any,
+) {
+  if (isConnected) {
+    connectedAppsMap.set(appDomain, isConnected);
+    await getDataInjectionRulesForApp(rpcUrl, appDomain, dataInjectionRulesMap);
+  } else {
+    connectedAppsMap.delete(appDomain);
+    dataInjectionRulesMap.delete(appDomain);
+  }
+}
+
+// Function that fetches the data injection rules for an app domain from orby.
+async function getOrbySupportedChains(
+  rpcUrl: string,
+  orbySupportedChains: Map<string, boolean>,
+): Promise<any> {
+  try {
+    const response = await orbyCall(
+      rpcUrl,
+      'orby_getChainsSupportedByDefault',
+      [],
+    );
+    const data = await response.json();
+    data.result.blockchains.forEach((supportedChain) => {
+      const splitLayer = supportedChain.chainId.split('-');
+      const chainIdNumber = splitLayer[splitLayer.length - 1];
+      orbySupportedChains.set(chainIdNumber, true);
+    });
+  } catch (error) {
+    console.log('get orby supported chains', error);
+  }
+}
+
+// Function that fetches the data injection rules for an app domain from orby.
+async function getDataInjectionRulesForApp(
+  rpcUrl: string,
+  appDomain: any,
+  dataInjectionRules: any,
+): Promise<any> {
+  try {
+    if (!dataInjectionRules.has(appDomain)) {
+      const response = await orbyCall(rpcUrl, 'orby_getDataInjectionRule', []);
+      const data = await response.json();
+      dataInjectionRules.set(appDomain, data.result);
+    }
+  } catch (error) {
+    console.log('get data injection rules for app', error);
+  }
+
+  return dataInjectionRules.get(appDomain);
+}
+
+// Function that sends data injection requests to orby for processing.
+async function processDataInjectionRequest(
+  rpcUrl: string,
+  message: any,
+  orbySupportedChains: any,
+): Promise<{ success: boolean; response?: any }> {
+  try {
+    const hasSupportedChains = Array.from(orbySupportedChains).length > 0;
+    const formattedRpcChainId = BigInt(message.rpcChainId).toString();
+    const isSupportedChain = orbySupportedChains.get(formattedRpcChainId)
+      ? true
+      : false;
+    if (hasSupportedChains && !isSupportedChain) {
+      return { success: false };
+    }
+
+    // Ping orby otherwise.
+    const orbyResponse = await orbyCall(
+      rpcUrl,
+      'orby_processDataInjectionRequest',
+      [
+        {
+          requestUrl: message.request[0],
+          requestBody: message.request[1],
+          isJsonRpcCall: message.isJsonRpcCall,
+          rpcChainId: formattedRpcChainId,
+        },
+      ],
+    );
+
+    // Return the results
+    const orbyData = await orbyResponse.json();
+    return {
+      success: orbyData.result ? orbyData.result.success : false,
+      response: {
+        headers: [...orbyResponse.headers.entries()],
+        status: orbyResponse.status,
+        statusText: orbyResponse.statusText,
+        body: orbyData.result ? orbyData.result.response : '',
+      },
+    };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+// Function to inject a script into the webpage context
+function addDataInjectionScriptToApp(params: {
+  dataInjectionScript: string;
+  dataInjectionRuleForApp: any;
+}) {
+  if (!window.__fetchOverwritten) {
+    window.__fetchOverwritten = true;
+
+    // add data injection scripts to the app
+    document.body.setAttribute(
+      'orby-data-injection-rule-for-app',
+      params.dataInjectionRuleForApp,
+    );
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL(params.dataInjectionScript);
+    (document.head || document.documentElement).appendChild(script);
+    script.onload = () => script.remove();
+
+    // Add listeners that receive requests from the app
+    window.addEventListener('message', async (event) => {
+      if (event.source !== window) return;
+      if (
+        event.data.id &&
+        event.data.type &&
+        event.data.type === 'ORBY_DATA_INJECTION_REQUEST'
+      ) {
+        const response = await sendDataInjectionRequestToServiceWorker(
+          event.data,
+        );
+        window.postMessage(
+          { type: 'ORBY_DATA_INJECTION_RESPONSE', id: event.data.id, response },
+          window.location.origin,
+        );
+      }
+    });
+
+    // Add a listener that reloads the page if the app disconnects.
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'ORBY_RELOAD_PAGE') {
+        window.location.reload();
+      }
+    });
+
+    // Function that fetches the data injection rules from the background service worker
+    async function sendDataInjectionRequestToServiceWorker(message) {
+      return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(message, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve(response);
+          }
+        });
+      });
+    }
+  }
+}
+
+// Function to add reload script into the webpage context
+function addReloadScriptToApp() {
+  if (!window.__reloadAdded) {
+    window.__reloadAdded = true;
+
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'ORBY_RELOAD_PAGE') {
+        window.location.reload();
+      }
+    });
+  }
+}
+
+// Function that makes calls to orby using fetch.
+function orbyCall(rpcUrl: string, method: string, params: any) {
+  return fetch(rpcUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      id: Math.floor(Math.random() * 1000) + 1,
+      jsonrpc: '2.0',
+      method,
+      params: params,
+    }),
+  });
+}

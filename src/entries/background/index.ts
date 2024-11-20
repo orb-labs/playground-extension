@@ -17,6 +17,8 @@ import { handleTabAndWindowUpdates } from './handlers/handleTabAndWindowUpdates'
 import { handleWallets } from './handlers/handleWallets';
 require('../../core/utils/lockdown');
 
+import { useUnifiedBalancesOnApps } from '~/core/utils/orb';
+
 initializeSentry('background');
 
 const popupMessenger = initializeMessenger({ connect: 'popup' });
@@ -37,4 +39,23 @@ handleKeepAlive();
 popupMessenger.reply('rainbow_updateWagmiClient', async () => {
   const { rainbowChains } = getRainbowChains();
   updateWagmiConfig(rainbowChains);
+});
+
+/* DATA INJECTION CODE BELOW */
+let connectedApps: any;
+
+useUnifiedBalancesOnApps(
+  true,
+  'assets/lite-weight-data-injection-script.js',
+  (response) => {
+    console.log('Current configs', response);
+    connectedApps = response.connectedApps;
+  },
+);
+
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) return;
+  if (message.type && message.type === 'fetchConnectedApps') {
+    sendResponse(Object.fromEntries(connectedApps));
+  }
 });
