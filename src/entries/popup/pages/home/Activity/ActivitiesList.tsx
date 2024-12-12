@@ -48,6 +48,7 @@ export function Activities() {
     isInitialLoading,
     isFetchingNextPage,
     isRefetching,
+    isFetching,
     transactions,
     virtualizer: activityRowVirtualizer,
   } = useInfiniteTransactionList({
@@ -107,7 +108,8 @@ export function Activities() {
     [isWatchingWallet, tokenApprovals],
   );
 
-  if (isInitialLoading || isRefetching) return <ActivitySkeleton />;
+  if (isInitialLoading || isRefetching || isFetching)
+    return <ActivitySkeleton />;
   if (!transactions.length) return <NoActivity />;
 
   const rows = activityRowVirtualizer.getVirtualItems();
@@ -181,7 +183,7 @@ const ActivityDescription = ({
   transaction: RainbowTransaction;
 }) => {
   const { type, to, asset } = transaction;
-  let description = transaction.description;
+  let description = transaction.description || 'felix';
   let tag: string | undefined;
   if (type === 'contract_interaction' && to) {
     description = transaction.contract?.name || truncateAddress(to);

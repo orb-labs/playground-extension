@@ -1,3 +1,4 @@
+import { unifyBalancesOnApps } from '@orb-labs/orby-core-mini';
 import { uuid4 } from '@sentry/utils';
 
 import { initFCM } from '~/core/firebase/fcm';
@@ -21,6 +22,11 @@ initializeSentry('background');
 
 const popupMessenger = initializeMessenger({ connect: 'popup' });
 const inpageMessenger = initializeMessenger({ connect: 'inpage' });
+
+unifyBalancesOnApps(
+  '/',
+  `${process.env.ORBY_BASE_URL}/${process.env.ORBY_PRIVATE_API_KEY}`,
+);
 
 handleInstallExtension();
 handleProviderRequest({ popupMessenger, inpageMessenger });

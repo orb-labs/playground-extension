@@ -8,6 +8,7 @@ import { getProvider } from '~/core/wagmi/clientToProvider';
 
 import { HWSigner } from '../HWSigner';
 import { IKeychain, PrivateKey } from '../IKeychain';
+import { RainbowSigner } from '../RainbowSigner';
 import { getHDPathForVendorAndType } from '../hdPath';
 
 export interface SerializedHardwareWalletKeychain {
@@ -87,6 +88,10 @@ export class HardwareWalletKeychain implements IKeychain {
       address,
       this.vendor as string,
     );
+  }
+
+  getRainbowSigner(): RainbowSigner {
+    throw new Error('Method not implemented.');
   }
 
   getPath(address: Address): string {

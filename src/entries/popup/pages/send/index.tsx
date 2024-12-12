@@ -2,7 +2,18 @@ import {
   TransactionRequest,
   TransactionResponse,
 } from '@ethersproject/abstract-provider';
+import {
+  OperationStatus,
+  OperationStatusType,
+  OperationType,
+} from '@orb-labs/orby-core';
+import {
+  useGetBlockchains,
+  useGetOperationsToExecuteTransaction,
+  useOrby,
+} from '@orb-labs/orby-react';
 import { useAnimationControls } from 'framer-motion';
+import _ from 'lodash';
 import {
   ChangeEvent,
   useCallback,
@@ -26,6 +37,7 @@ import {
 } from '~/core/state';
 import { useContactsStore } from '~/core/state/contacts';
 import { useConnectedToHardhatStore } from '~/core/state/currentSettings/connectedToHardhat';
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 import {
   computeUniqueIdForHiddenAsset,
   useHiddenAssetStore,
@@ -50,6 +62,7 @@ import {
   getUniqueAssetImagePreviewURL,
   getUniqueAssetImageThumbnailURL,
 } from '~/core/utils/nfts';
+import { signOperation } from '~/core/utils/orb';
 import { addNewTransaction } from '~/core/utils/transactions';
 import {
   Box,
@@ -74,11 +87,7 @@ import { Navbar } from '../../components/Navbar/Navbar';
 import { CursorTooltip } from '../../components/Tooltip/CursorTooltip';
 import { TransactionFee } from '../../components/TransactionFee/TransactionFee';
 import { isLedgerConnectionError } from '../../handlers/ledger';
-import {
-  getWallet,
-  sendOrbyTransaction,
-  sendTransaction,
-} from '../../handlers/wallet';
+import { getWallet, sendTransaction } from '../../handlers/wallet';
 import { useSendAsset } from '../../hooks/send/useSendAsset';
 import { useSendInputs } from '../../hooks/send/useSendInputs';
 import { useSendState } from '../../hooks/send/useSendState';
@@ -93,41 +102,13 @@ import { ROUTES } from '../../urls';
 import { clickHeaderRight } from '../../utils/clickHeader';
 import { NFTThumbnail } from '../home/NFTs/NFTThumbnail';
 
+import { ChainInput } from './ChainInput';
 import { ContactAction, ContactPrompt } from './ContactPrompt';
 import { NavbarContactButton } from './NavbarContactButton';
 import { ReviewSheet } from './ReviewSheet';
 import { SendTokenInput } from './SendTokenInput';
 import { ToAddressInput } from './ToAddressInput';
 import { ValueInput } from './ValueInput';
-import { ChainInput } from './ChainInput';
-
-import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
-
-import {
-  useCreateClusterId,
-  usePortfolio,
-  usePortfolioBalance,
-  useVirtualNodeRpcUrl,
-  convertFungibleTokensToParsedUserAssets,
-  getOperationsToTransferToken,
-} from '~/core/utils/orb';
-import { convertAmountToRawAmount } from '~/core/utils/numbers';
-
-const MAINNET_CHAINS = [
-  { id: 1, name: 'Ethereum' },
-  { id: 137, name: 'Polygon' },
-  { id: 10, name: 'Optimism' },
-  { id: 42161, name: 'Arbitrum' },
-  { id: 8453, name: 'Base' },
-];
-
-const TESTNET_CHAINS = [
-  { id: 11155111, name: 'Ethereum Sepolia' },
-  { id: 80002, name: 'Polygon Amoy' },
-  { id: 11155420, name: 'Optimism Sepolia' },
-  { id: 421614, name: 'Arbitrum Sepolia' },
-  { id: 84532, name: 'Base Sepolia' },
-];
 
 interface ChildInputAPI {
   blur: () => void;
@@ -135,9 +116,20 @@ interface ChildInputAPI {
   isFocused?: () => boolean;
 }
 
+export interface GasTokenInput {
+  name: string;
+  standardizedTokenId?: string;
+  isDefault: boolean;
+  url?: string;
+}
+
+export interface OperationSetStatus {
+  allOperationStatuses?: OperationStatus[];
+  finalTransactionStatus?: OperationStatus;
+  statusSummary: OperationStatusType;
+}
+
 export function Send() {
-  const { testnetMode } = useTestnetModeStore();
-  const { currentAddress } = useCurrentAddressStore();
   const [waitingForDevice, setWaitingForDevice] = useState(false);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
   const [contactSaveAction, setSaveContactAction] = useState<{
@@ -146,10 +138,6 @@ export function Send() {
   }>({ show: false, action: 'save' });
   const [toAddressDropdownOpen, setToAddressDropdownOpen] = useState(false);
 
-  const chains = testnetMode ? TESTNET_CHAINS : MAINNET_CHAINS;
-
-  const [chainId, setChainId] = useState<number | undefined>();
-
   const navigate = useRainbowNavigate();
   const { currentAddress: address } = useCurrentAddressStore();
 
@@ -157,6 +145,19 @@ export function Send() {
   const { allWallets } = useWallets();
   const { hidden } = useHiddenAssetStore();
   const [urlSearchParams] = useSearchParams();
+
+  const [operationSetStatus, setOperationSetStatus] = useState<
+    OperationSetStatus | undefined
+  >(undefined);
+
+  const [selectedGasToken, setSelectedGasToken] = useState<GasTokenInput>({
+    name: 'no gas abstraction',
+    standardizedTokenId: undefined,
+    isDefault: true,
+  });
+
+  const { testnetMode } = useTestnetModeStore();
+  const { blockchains } = useGetBlockchains(testnetMode);
 
   const queryToAddress = urlSearchParams.get('to');
   const validatedQueryToAddress = isAddress(queryToAddress as Address)
@@ -176,39 +177,31 @@ export function Send() {
   const { connectedToHardhat, connectedToHardhatOp } =
     useConnectedToHardhatStore();
 
-  const clusterId = useCreateClusterId(currentAddress);
-  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
-    clusterId,
-    currentAddress,
-    testnetMode,
-  );
-  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
-  const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
-
-  console.log('portfolio in send', portfolio);
-  console.log('portfolioBalance in send', portfolioBalance);
-
-  const orbyAssets = useMemo(
-    () =>
-      portfolio
-        ? convertFungibleTokensToParsedUserAssets(
-            portfolio.fungibleTokenBalances,
-          )
-        : [],
-    [portfolio],
-  );
-
   const {
     asset,
     selectAssetAddressAndChain,
+    setSelectedAssetAddress,
+    setSelectedAssetChain,
+    chainId,
     assets,
     setSortMethod,
     sortMethod,
-  } = useSendAsset({ assets: orbyAssets });
+    portfolio,
+  } = useSendAsset();
 
   const unhiddenAssets = useMemo(
-    () => assets.filter((asset) => !isHidden(asset)),
-    [assets, isHidden],
+    () =>
+      assets.filter((asset) => {
+        if (chainId) {
+          return (
+            !isHidden(asset) &&
+            asset.relatedChainIds?.includes(chainId.toString())
+          );
+        }
+
+        return !isHidden(asset);
+      }),
+    [assets, isHidden, chainId],
   );
 
   const { nft, collections, nftSortMethod, setNftSortMethod, selectNft } =
@@ -241,7 +234,6 @@ export function Send() {
   const {
     currentCurrency,
     maxAssetBalanceParams,
-    // chainId,
     data,
     fromAddress,
     toAddress,
@@ -251,23 +243,6 @@ export function Send() {
     value,
     setToAddressOrName,
   } = useSendState({ assetAmount, rawMaxAssetBalanceAmount, asset, nft });
-
-  const {
-    buttonLabel,
-    isValidToAddress,
-    readyForReview,
-    validateToAddress,
-    toAddressIsSmartContract,
-  } = useSendValidations({
-    asset,
-    assetAmount,
-    nft,
-    selectedGas,
-    toAddress,
-    toAddressOrName,
-  });
-
-  console.log('readyForReview', readyForReview);
 
   const controls = useAnimationControls();
   const transactionRequestForGas: TransactionRequest = useMemo(() => {
@@ -308,19 +283,6 @@ export function Send() {
     [setToAddressOrName],
   );
 
-  const openReviewSheet = useCallback(() => {
-    // if (readyForReview) {
-    if (true) {
-      setShowReviewSheet(true);
-    } else {
-      controls.start({
-        rotate: [1, -1.4, 0, 1, -1.4, 0],
-        transition: { duration: 0.2 },
-      });
-      independentFieldRef?.current?.focus();
-    }
-  }, [readyForReview, controls, independentFieldRef]);
-
   const closeReviewSheet = useCallback(() => setShowReviewSheet(false), []);
 
   const {
@@ -335,7 +297,7 @@ export function Send() {
   const activeChainId = chainIdToUse(
     connectedToHardhat,
     connectedToHardhatOp,
-    chainId,
+    chainId ?? 0, // TODO(felix): this should be 1
   );
 
   const { flashbotsEnabled } = useFlashbotsEnabledStore();
@@ -412,96 +374,144 @@ export function Send() {
     ],
   );
 
-  if (asset && portfolio) {
-    console.log(asset?.isNativeAsset);
-    console.log('portfolio here', portfolio);
-    console.log('portfolio balances here', portfolio?.fungibleTokenBalances);
-    const recipientAddress = asset.isNativeAsset
-      ? toAddress
-      : portfolio.fungibleTokenBalances
-          .find(
-            (fungibleToken) =>
-              fungibleToken.standardizedTokenId === asset.address,
-          )
-          .tokenBalancesOnChains.find(
-            (tokenBalances) => tokenBalances.token.chainId === '84532', // base sepolia
-          )?.token.address;
+  const { accountCluster, baseMainnetClient } = useOrby();
 
-    console.log('recipientAddress', recipientAddress);
-  }
-
-  const [operationSet, setOperationSet] = useState(null);
-
-  useEffect(() => {
-    const getSendDetails = async () => {
-      console.log('in here');
-
-      const operationsToSend = await getOperationsToTransferToken({
-        virtualNodeRpcUrl: virtualNodeRpcUrl!,
-        clusterId: clusterId!,
-        standardizedTokenId: asset!.address, // NOTE: we're using the address field as the standardizedTokenId
-        amount: convertAmountToRawAmount(assetAmount, asset!.decimals),
-        recipient: {
-          address: toAddress!,
-          chainId: `EIP155-${chainId}`,
-        },
-      });
-
-      console.log('operationsToSend', operationsToSend);
-      setOperationSet(operationsToSend);
-    };
-
-    if (clusterId && virtualNodeRpcUrl && asset && assetAmount && toAddress) {
-      getSendDetails();
+  const to = useMemo(() => {
+    if (nft) {
+      return nft.asset_contract.address;
     }
-  }, [asset, assetAmount, clusterId, toAddress, virtualNodeRpcUrl, chainId]);
+
+    return txToAddress;
+  }, [nft, txToAddress]);
+
+  const { operations, operationSet, virtualNode, aggregateFee, isLoading } =
+    useGetOperationsToExecuteTransaction(
+      fromAddress as string,
+      activeChainId ? BigInt(activeChainId as number) : undefined,
+      to,
+      data as string,
+      value ? BigInt(value.toString()) : undefined,
+      selectedGasToken.standardizedTokenId
+        ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
+        : undefined,
+    );
+
+  const {
+    buttonLabel,
+    isValidToAddress,
+    readyForReview,
+    validateToAddress,
+    toAddressIsSmartContract,
+  } = useSendValidations({
+    asset,
+    assetAmount,
+    nft,
+    selectedGas,
+    toAddress,
+    toAddressOrName,
+    operationSet,
+    isLoading,
+  });
+
+  const openReviewSheet = useCallback(() => {
+    if (readyForReview) {
+      setShowReviewSheet(true);
+    } else {
+      controls.start({
+        rotate: [1, -1.4, 0, 1, -1.4, 0],
+        transition: { duration: 0.2 },
+      });
+      independentFieldRef?.current?.focus();
+    }
+  }, [readyForReview, controls, independentFieldRef]);
+
+  const operationStatusesUpdated = useCallback(
+    (
+      statusSummary: OperationStatusType,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _finalTransactionStatus?: OperationStatus,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _statuses?: OperationStatus[],
+    ) => {
+      if (
+        operations &&
+        [OperationStatusType.SUCCESSFUL, OperationStatusType.PENDING].includes(
+          statusSummary,
+        )
+      ) {
+        const finalTransaction = operations[operations.length - 1];
+
+        navigate(ROUTES.HOME, {
+          state: { tab: 'activity' },
+        });
+        // callback?.();
+        analytics.track(event.sendSubmitted, {
+          assetSymbol: asset?.symbol,
+          assetName: asset?.name,
+          assetAddress: asset?.address,
+          assetAmount,
+          chainId: Number(finalTransaction.chainId ?? 0),
+        });
+      }
+    },
+    [
+      asset?.address,
+      asset?.name,
+      asset?.symbol,
+      assetAmount,
+      navigate,
+      operations,
+    ],
+  );
 
   const handleSend = useCallback(
     async (callback?: () => void) => {
       if (!config.send_enabled) return;
 
       try {
-        if (asset && operationSet) {
+        if (
+          asset &&
+          operations &&
+          accountCluster &&
+          operationSet &&
+          virtualNode
+        ) {
+          setOperationSetStatus({
+            statusSummary: OperationStatusType.PENDING,
+            finalTransactionStatus: {
+              type: OperationType.FINAL_TRANSACTION,
+              status: OperationStatusType.WAITING_PRECONDITION,
+              errorReason: '',
+            },
+          });
+
           const { type } = await getWallet(fromAddress);
           // Change the label while we wait for confirmation
           if (type === 'HardwareWalletKeychain') {
             setWaitingForDevice(true);
           }
           resetSendValues();
-          // const result = await sendTransaction({
-          //   from: fromAddress,
-          //   to: txToAddress,
-          //   value,
-          //   chainId: activeChainId,
-          //   data,
-          // });
-          const { result } = await sendOrbyTransaction({
-            virtualNodeRpcUrl: virtualNodeRpcUrl!,
-            clusterId: clusterId!,
-            operationSet,
+
+          const { operationResponses, primaryOperationStatus } =
+            await virtualNode.sendOperationSet(
+              accountCluster.accountClusterId,
+              operationSet,
+              signOperation,
+            );
+
+          setOperationSetStatus({
+            allOperationStatuses: operationResponses,
+            finalTransactionStatus: primaryOperationStatus,
+            statusSummary: OperationStatusType.PENDING,
           });
 
-          console.log('orbyTxResult', result);
-
-          if (result && asset) {
-            // const transaction: NewTransaction = buildPendingTransaction(result);
-            // addNewTransaction({
-            //   address: fromAddress,
-            //   chainId: activeChainId,
-            //   transaction,
-            // });
-            callback?.();
-            navigate(ROUTES.HOME, {
-              state: { tab: 'activity' },
-            });
-            analytics.track(event.sendSubmitted, {
-              assetSymbol: asset?.symbol,
-              assetName: asset?.name,
-              assetAddress: asset?.address,
-              assetAmount,
-              chainId,
-            });
-          }
+          const ids = operationResponses
+            ?.map((op) => op.id)
+            .filter((id) => !_.isUndefined(id));
+          baseMainnetClient?.subscribeToOperationStatuses(
+            ids,
+            operationStatusesUpdated,
+          );
         } else if (nft) {
           const { type } = await getWallet(fromAddress);
           // Change the label while we wait for confirmation
@@ -515,7 +525,8 @@ export function Send() {
             chainId: activeChainId,
             data,
           });
-          if (result && nft) {
+
+          if (result && nft && chainId) {
             const transaction: NewTransaction = buildPendingTransaction(result);
             addNewTransaction({
               address: fromAddress,
@@ -552,18 +563,21 @@ export function Send() {
       }
     },
     [
+      asset,
+      operations,
+      accountCluster,
+      operationSet,
+      virtualNode,
+      nft,
       fromAddress,
       resetSendValues,
-      txToAddress,
-      value,
+      operationStatusesUpdated,
+      baseMainnetClient,
+      chainId,
+      buildPendingTransaction,
       activeChainId,
       data,
-      asset,
-      assetAmount,
-      buildPendingTransaction,
-      chainId,
       navigate,
-      nft,
     ],
   );
 
@@ -584,6 +598,25 @@ export function Send() {
       selectAssetAddressAndChain,
       setIndependentAmount,
     ],
+  );
+
+  const onSelectAssetAddressAndChain = useCallback(
+    (asset?: ParsedUserAsset | null) => {
+      if (asset) {
+        const token = portfolio
+          ?.find((sBalance) => sBalance.standardizedTokenId == asset?.uniqueId)
+          ?.tokenBalancesOnChains.find(
+            (tBalance) => chainId && tBalance.token.chainId == BigInt(chainId),
+          )?.token;
+
+        if (token) {
+          selectAsset(token?.address as Address, Number(token.chainId));
+        }
+      } else {
+        setSelectedAssetAddress('');
+      }
+    },
+    [chainId, portfolio, selectAsset, setSelectedAssetAddress],
   );
 
   useEffect(() => {
@@ -615,9 +648,17 @@ export function Send() {
   }, [hideExplainerSheet, showExplainerSheet]);
 
   useEffect(() => {
+    const token = portfolio
+      ?.find(
+        (sBalance) => sBalance.standardizedTokenId == selectedToken?.uniqueId,
+      )
+      ?.tokenBalancesOnChains.find(
+        (tBalance) => chainId && tBalance.token.chainId == BigInt(chainId),
+      )?.token;
+
     // navigating from token row
-    if (selectedToken) {
-      selectAsset(selectedToken.address, selectedToken.chainId);
+    if (token) {
+      selectAsset(token?.address as Address, Number(token.chainId));
       // clear selected token
       setSelectedToken();
     } else if (selectedNft) {
@@ -741,9 +782,9 @@ export function Send() {
           />
           <AccentColorProvider color={assetAccentColor}>
             <ReviewSheet
-              operationSet={operationSet}
               show={showReviewSheet}
               onCancel={closeReviewSheet}
+              operationSet={operationSet}
               onSend={handleSend}
               toAddress={toAddress}
               asset={asset}
@@ -752,6 +793,7 @@ export function Send() {
               secondaryAmountDisplay={dependentAmountDisplay.display}
               onSaveContactAction={setSaveContactAction}
               waitingForDevice={waitingForDevice}
+              operationSetStatus={operationSetStatus}
             />
           </AccentColorProvider>
         </>
@@ -808,18 +850,17 @@ export function Send() {
 
             <Row height="content">
               <ChainInput
-                availableChains={chains}
-                selectedChain={chains.find((c) => c.id === chainId)}
-                onSelectChain={(chain) => {
-                  setChainId(chain.id);
-                  console.log('chain', chain);
-                }}
-                onDropdownOpen={() => {
-                  console.log('onDropdownOpen');
-                }}
-                onClearSelection={() => {
-                  setChainId(undefined);
-                }}
+                availableChains={blockchains}
+                selectedChain={blockchains?.find(
+                  (c) => Number(c.chainId) === chainId,
+                )}
+                onSelectChain={(chain) =>
+                  setSelectedAssetChain(
+                    chain?.chainId ? Number(chain.chainId) : undefined,
+                  )
+                }
+                onDropdownOpen={() => {}}
+                onClearSelection={() => setSelectedAssetChain(undefined)}
               />
             </Row>
 
@@ -832,9 +873,8 @@ export function Send() {
                 >
                   <SendTokenInput
                     asset={asset}
-                    assets={assets}
-                    // assets={unhiddenAssets}
-                    selectAssetAddressAndChain={selectAsset}
+                    assets={unhiddenAssets}
+                    selectAssetAddressAndChain={onSelectAssetAddressAndChain}
                     dropdownClosed={toAddressDropdownOpen}
                     setSortMethod={setSortMethod}
                     sortMethod={sortMethod}
@@ -884,7 +924,7 @@ export function Send() {
           )}
 
           <Row height="content">
-            {isValidToAddress && (!!asset || !!nft) ? (
+            {isValidToAddress && (!!asset || !!nft) && chainId ? (
               <AccentColorProvider color={assetAccentColor}>
                 <Box paddingHorizontal="8px">
                   <Rows space="20px">
@@ -895,6 +935,13 @@ export function Send() {
                         transactionRequest={transactionRequestForGas}
                         accentColor={assetAccentColor}
                         flashbotsEnabled={flashbotsEnabledGlobally}
+                        selectedGasToken={selectedGasToken}
+                        setSelectedGasToken={(token) => {
+                          if (token) {
+                            setSelectedGasToken(token);
+                          }
+                        }}
+                        aggregateFee={aggregateFee}
                       />
                     </Row>
                     <Row>

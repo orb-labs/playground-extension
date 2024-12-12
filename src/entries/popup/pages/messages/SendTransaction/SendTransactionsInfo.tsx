@@ -1,6 +1,7 @@
 import { TransactionRequest } from '@ethersproject/abstract-provider';
+import { OperationSet } from '@orb-labs/orby-core';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ReactNode, memo, useState } from 'react';
+import { ReactNode, memo, useMemo, useState } from 'react';
 import { Address, formatUnits } from 'viem';
 
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
@@ -46,7 +47,6 @@ import {
 } from '../DappScanStatus';
 import { SimulationOverview } from '../Simulation';
 import { CopyButton, TabContent, Tabs } from '../Tabs';
-import { useHasEnoughGas } from '../useHasEnoughGas';
 import {
   SimulationError,
   TransactionSimulation,
@@ -60,7 +60,7 @@ interface SendTransactionProps {
   }: {
     preventWindowClose?: boolean;
   }) => void;
-  operations: any;
+  operationSet?: OperationSet;
 }
 
 const InfoRow = ({
@@ -170,23 +170,20 @@ const Overview = memo(function Overview({
 });
 
 const TransactionRoute = memo(function TransactionRoute({
-  operations,
+  operationSet,
 }: {
-  operations: any;
+  operationSet?: OperationSet;
 }) {
-  console.log('operations', operations);
-  const inputStates = operations
-    ? operations.flatMap(
-        (operation) => operation.inputState.fungibleTokenAmounts,
-      )
-    : [];
-  console.log('inputStates', inputStates);
+  const fungibleTokens = useMemo(() => {
+    return operationSet?.inputState?.getFungibleTokens();
+  }, [operationSet]);
+
   return (
     <Box gap="16px" display="flex" flexDirection="column" paddingTop="14px">
       <Text size="12pt" weight="semibold" color="labelTertiary">
         Using Funds
       </Text>
-      {inputStates.map((input, i) => (
+      {fungibleTokens?.map((input, i) => (
         <Inline key={i} alignVertical="center">
           <Symbol
             size={14}
@@ -196,8 +193,8 @@ const TransactionRoute = memo(function TransactionRoute({
           />
           <Box paddingLeft="10px">
             <Text key={i} size="14pt" weight="bold" color="label">
-              Use {formatUnits(input.amount, input.token.currency.decimals)}{' '}
-              {input.token.currency.asset.symbol} from{' '}
+              Use {formatUnits(input.toRawAmount(), input.token.decimals)}{' '}
+              {input.token.symbol} from{' '}
               {getChain({ chainId: Number(input.token.chainId) }).name}
             </Text>
           </Box>
@@ -332,14 +329,14 @@ function TransactionInfo({
   dappMetadata,
   expanded,
   onExpand,
-  operations,
+  operationSet,
 }: {
   request: TransactionRequest;
   dappUrl: string;
   dappMetadata: DappMetadata | null;
   expanded: boolean;
   onExpand: VoidFunction;
-  operations: any;
+  operationSet?: OperationSet;
 }) {
   const { activeSession } = useAppSession({ host: dappMetadata?.appHost });
   const chainId = activeSession?.chainId || ChainId.mainnet;
@@ -391,7 +388,7 @@ function TransactionInfo({
           />
         </TabContent>
         <TabContent value="Route">
-          {operations && <TransactionRoute operations={operations} />}
+          {operationSet && <TransactionRoute operationSet={operationSet} />}
         </TabContent>
         {simulation && (
           <TabContent value={tabLabel('details')}>
@@ -614,7 +611,7 @@ function InsuficientGasFunds({
 export function SendTransactionInfo({
   request,
   onRejectRequest,
-  operations,
+  operationSet,
 }: SendTransactionProps) {
   const dappUrl = request?.meta?.sender?.url || '';
   const { data: dappMetadata } = useDappMetadata({ url: dappUrl });
@@ -627,8 +624,9 @@ export function SendTransactionInfo({
 
   const isScamDapp = dappMetadata?.status === DAppStatus.Scam;
 
-  // const hasEnoughGas = useHasEnoughGas(activeSession);
-  const hasEnoughGas = true;
+  const hasEnoughGas = useMemo(() => {
+    return true;
+  }, []);
 
   return (
     <Box
@@ -683,7 +681,7 @@ export function SendTransactionInfo({
           dappUrl={dappUrl}
           expanded={expanded}
           onExpand={() => setExpanded((e) => !e)}
-          operations={operations}
+          operationSet={operationSet}
         />
       ) : (
         activeSession && (

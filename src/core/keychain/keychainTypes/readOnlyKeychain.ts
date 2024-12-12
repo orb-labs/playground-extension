@@ -9,6 +9,7 @@ import { KeychainType } from '~/core/types/keychainTypes';
 import { logger } from '~/logger';
 
 import { IKeychain, PrivateKey } from '../IKeychain';
+import { RainbowSigner } from '../RainbowSigner';
 
 export interface SerializedReadOnlyKeychain {
   type: KeychainType.ReadOnlyKeychain;
@@ -27,6 +28,10 @@ export class ReadOnlyKeychain implements IKeychain {
   }
 
   getSigner(address: Address): Signer {
+    throw new Error('Method not implemented.');
+  }
+
+  getRainbowSigner(): RainbowSigner {
     throw new Error('Method not implemented.');
   }
 

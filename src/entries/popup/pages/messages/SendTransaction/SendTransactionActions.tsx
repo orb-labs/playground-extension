@@ -45,8 +45,6 @@ export const SendTransactionActions = ({
     },
   });
 
-  console.log('buttonLabel', buttonLabel);
-
   return (
     <Inline space="12px" wrap={false}>
       <RejectRequestButton

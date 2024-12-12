@@ -4,7 +4,6 @@ import { QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Address, Hash } from 'viem';
 
 import { i18n } from '~/core/languages';
-import { addysHttp } from '~/core/network/addys';
 import { QueryFunctionResult, createQueryKey } from '~/core/react-query';
 import { SupportedCurrencyKey } from '~/core/references';
 import { supportedTransactionsChainIds } from '~/core/references/chains';
@@ -19,12 +18,7 @@ import {
 } from '~/core/state';
 import { customNetworkTransactionsStore } from '~/core/state/transactions/customNetworkTransactions';
 import { ChainId } from '~/core/types/chains';
-import {
-  RainbowTransaction,
-  TransactionApiResponse,
-  TxHash,
-} from '~/core/types/transactions';
-import { parseTransaction } from '~/core/utils/transactions';
+import { RainbowTransaction, TxHash } from '~/core/types/transactions';
 import { getProvider } from '~/core/wagmi/clientToProvider';
 import { useUserChains } from '~/entries/popup/hooks/useUserChains';
 import { RainbowError, logger } from '~/logger';
@@ -44,7 +38,6 @@ const searchInLocalPendingTransactions = (userAddress: Address, hash: Hash) => {
 export const fetchTransaction = async ({
   hash,
   address,
-  currency,
   chainId,
 }: {
   hash: TxHash;
@@ -61,27 +54,13 @@ export const fetchTransaction = async ({
   }
 
   try {
-    const response = await addysHttp.get<{
-      payload: { transaction: TransactionApiResponse };
-      meta: { status: string };
-    }>(`/${chainId}/${address}/transactions/${hash}`, {
-      params: { currency: currency.toLowerCase() },
+    const providerTx = await fetchTransactionDataFromProvider({
+      chainId,
+      hash,
+      account: address,
     });
-    const tx = response.data.payload.transaction;
-    if (response.data.meta.status === 'pending') {
-      const localPendingTx = searchInLocalPendingTransactions(address, hash);
-      if (localPendingTx) return localPendingTx;
 
-      const providerTx = await fetchTransactionDataFromProvider({
-        chainId,
-        hash,
-        account: address,
-      });
-      return providerTx;
-    }
-    const parsedTx = parseTransaction({ tx, currency, chainId });
-    if (!parsedTx) throw new Error('Failed to parse transaction');
-    return parsedTx;
+    return providerTx;
   } catch (e) {
     // if it's a pending tx BE may be in another mempool and it will return 404,
     // which throws and gets caught here, so we check if we got it in localstorage

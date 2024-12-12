@@ -38,6 +38,13 @@ export class KeyPairKeychain implements IKeychain {
     return new RainbowSigner(provider, wallet.privateKey, wallet.address);
   }
 
+  getRainbowSigner(): RainbowSigner {
+    const provider = getProvider({ chainId: mainnet.id });
+    const wallet = privates.get(this).wallets[0] as TWallet;
+    if (!wallet) throw new Error('Account not found');
+    return new RainbowSigner(provider, wallet.privateKey, wallet.address);
+  }
+
   async serialize(): Promise<SerializedKeypairKeychain> {
     return {
       privateKey: (privates.get(this).wallets[0] as Wallet)

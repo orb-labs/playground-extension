@@ -1,5 +1,6 @@
+import { AddressZero } from '@ethersproject/constants';
 import { upperCase } from 'lodash';
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 
 import EthIcon from 'static/assets/ethIcon.png';
 import { ETH_ADDRESS } from '~/core/references';
@@ -12,6 +13,7 @@ import {
 import { ChainId } from '~/core/types/chains';
 import { UniqueAsset } from '~/core/types/nfts';
 import { SearchAsset } from '~/core/types/search';
+import { getCustomChainIconUrl } from '~/core/utils/assets';
 import { AccentColorProvider, Box, Symbol } from '~/design-system';
 import { BoxStyles } from '~/design-system/styles/core.css';
 import { colors as emojiColors } from '~/entries/popup/utils/emojiAvatarBackgroundColors';
@@ -38,6 +40,7 @@ export function CoinIcon({
   badgePositionBottom = 0,
   badgePositionLeft = -6,
   badgeSize = '16',
+  isParent,
 }: {
   asset?:
     | ParsedAsset
@@ -51,6 +54,7 @@ export function CoinIcon({
   badgePositionBottom?: number;
   badgePositionLeft?: number;
   badgeSize?: ChainIconProps['size'];
+  isParent: boolean;
 }) {
   const mainnetAddress = asset?.mainnetAddress;
   const address = asset?.address;
@@ -59,6 +63,16 @@ export function CoinIcon({
   const isNft =
     (asset as ParsedAsset)?.standard === 'erc-721' ||
     (asset as ParsedAsset)?.standard === 'erc-1155';
+
+  const url = useMemo(() => {
+    if (!asset) {
+      return undefined;
+    }
+
+    return isParent
+      ? asset?.icon_url
+      : getCustomChainIconUrl(asset.chainId!, AddressZero);
+  }, [asset, isParent]);
 
   return asset ? (
     <CoinIconWrapper
@@ -75,7 +89,7 @@ export function CoinIcon({
         address={address}
         fallbackText={asset?.symbol || fallbackText}
         mainnetAddress={mainnetAddress}
-        url={asset?.icon_url}
+        url={url}
         size={size}
       />
     </CoinIconWrapper>
@@ -123,14 +137,9 @@ function ShadowWrapper({
 }
 
 function CoinIconWrapper({
-  chainId,
   children,
   shadowColor,
   size,
-  badge = true,
-  badgePositionBottom,
-  badgePositionLeft,
-  badgeSize,
   borderRadius,
 }: {
   chainId: ChainId;
@@ -152,7 +161,7 @@ function CoinIconWrapper({
       >
         {children}
       </ShadowWrapper>
-      {badge && chainId !== ChainId.mainnet && (
+      {/* {badge && chainId !== ChainId.mainnet && (
         <Box
           display="flex"
           height="fit"
@@ -162,8 +171,33 @@ function CoinIconWrapper({
         >
           <ChainBadge chainId={chainId} shadow size={badgeSize} />
         </Box>
-      )}
+      )} */}
     </Box>
+  );
+}
+
+export function ChainIcon({
+  size,
+  url,
+  fallbackText,
+}: {
+  size: number;
+  url?: string;
+  fallbackText?: string;
+}) {
+  if (url) {
+    return (
+      <CloudinaryCoinIcon size={size} url={url} fallbackText={fallbackText} />
+    );
+  }
+  return (
+    <Box
+      background="fillQuaternary"
+      borderColor="separatorTertiary"
+      borderRadius="round"
+      borderWidth="1px"
+      style={{ height: 36, width: 36 }}
+    />
   );
 }
 
@@ -297,8 +331,6 @@ export const NFTIcon = ({
 export const ContractIcon = ({
   size,
   iconUrl,
-  badge,
-  chainId,
 }: {
   iconUrl?: string;
   size: keyof typeof nftRadiusBySize;
@@ -335,11 +367,11 @@ export const ContractIcon = ({
         width={size}
         height={size}
       />
-      {badge && chainId && chainId !== ChainId.mainnet && (
+      {/* {badge && chainId && chainId !== ChainId.mainnet && (
         <Box position="absolute" bottom="0" style={{ zIndex: 2, left: '-6px' }}>
           <ChainBadge chainId={chainId} shadow size="16" />
         </Box>
-      )}
+      )} */}
     </Box>
   );
 };
@@ -378,6 +410,7 @@ export function TwoCoinsIcon({
           size={underSize}
           fallbackText={under.symbol}
           badge={false}
+          isParent={false}
         />
         <svg style={{ position: 'absolute', width: 0, height: 0 }}>
           <clipPath id="underTokenClip" clipPathUnits="objectBoundingBox">
@@ -398,6 +431,7 @@ export function TwoCoinsIcon({
           size={overSize}
           fallbackText={over.symbol}
           badge={false}
+          isParent={false}
         />
       </Box>
       <Box position="absolute" bottom="0" style={{ zIndex: 2, left: '-6px' }}>

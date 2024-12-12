@@ -1,5 +1,6 @@
+import { OnchainOperation, OperationSet } from '@orb-labs/orby-core';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState, memo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { formatUnits } from 'viem';
 
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
@@ -27,7 +28,8 @@ import {
 
 interface SignMessageProps {
   request: ProviderRequestPayload;
-  operations: any;
+  operations?: OnchainOperation[];
+  operationSet?: OperationSet;
 }
 
 function Overview({
@@ -92,23 +94,21 @@ function Overview({
 }
 
 const TransactionRoute = memo(function TransactionRoute({
-  operations,
+  operationSet,
 }: {
-  operations: any;
+  operations?: OnchainOperation[];
+  operationSet?: OperationSet;
 }) {
-  console.log('operations', operations);
-  const inputStates = operations
-    ? operations.flatMap(
-        (operation) => operation.inputState.fungibleTokenAmounts,
-      )
-    : [];
-  console.log('inputStates', inputStates);
+  const fungibleTokens = useMemo(() => {
+    return operationSet?.inputState?.getFungibleTokens();
+  }, [operationSet]);
+
   return (
     <Box gap="16px" display="flex" flexDirection="column" paddingTop="14px">
       <Text size="12pt" weight="semibold" color="labelTertiary">
         Using Funds
       </Text>
-      {inputStates.map((input, i) => (
+      {fungibleTokens?.map((input, i) => (
         <Inline key={i} alignVertical="center">
           <Symbol
             size={14}
@@ -118,8 +118,8 @@ const TransactionRoute = memo(function TransactionRoute({
           />
           <Box paddingLeft="10px">
             <Text key={i} size="14pt" weight="bold" color="label">
-              Use {formatUnits(input.amount, input.token.currency.decimals)}{' '}
-              {input.token.currency.asset.symbol} from{' '}
+              Use {formatUnits(input.toRawAmount(), input.token.decimals)}{' '}
+              {input.token.symbol} from{' '}
               {getChain({ chainId: Number(input.token.chainId) }).name}
             </Text>
           </Box>
@@ -129,7 +129,11 @@ const TransactionRoute = memo(function TransactionRoute({
   );
 });
 
-export const SignMessageInfo = ({ request, operations }: SignMessageProps) => {
+export const SignMessageInfo = ({
+  request,
+  operations,
+  operationSet,
+}: SignMessageProps) => {
   const dappUrl = request?.meta?.sender?.url || '';
   const { currentCurrency } = useCurrentCurrencyStore();
   const { data: dappMetadata } = useDappMetadata({ url: dappUrl });
@@ -232,7 +236,12 @@ export const SignMessageInfo = ({ request, operations }: SignMessageProps) => {
           />
         </TabContent>
         <TabContent value="Route">
-          {operations && <TransactionRoute operations={operations} />}
+          {operations && (
+            <TransactionRoute
+              operations={operations}
+              operationSet={operationSet}
+            />
+          )}
         </TabContent>
       </Tabs>
 

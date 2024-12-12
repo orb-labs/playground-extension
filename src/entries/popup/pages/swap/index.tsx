@@ -1,10 +1,15 @@
+import { PopulatedTransaction } from '@ethersproject/contracts';
+import { OperationSet } from '@orb-labs/orby-core';
+import { useGetOperationsToExecuteTransaction } from '@orb-labs/orby-react';
+import { OrbyActions } from '@orb-labs/orby-viem-extension';
 import { CrosschainQuote, Quote, QuoteError } from '@rainbow-me/swaps';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Address } from 'viem';
+import { Address, Client, HttpTransport, PublicRpcSchema } from 'viem';
 
 import config from '~/core/firebase/remoteConfig';
 import { i18n } from '~/core/languages';
+import { populateSwap } from '~/core/raps/utils';
 import { shortcuts } from '~/core/references/shortcuts';
 import { useCurrentAddressStore, useGasStore } from '~/core/state';
 import { useFeatureFlagsStore } from '~/core/state/currentSettings/featureFlags';
@@ -19,7 +24,7 @@ import { ParsedSearchAsset, ParsedUserAsset } from '~/core/types/assets';
 import { ChainId } from '~/core/types/chains';
 import { SearchAsset } from '~/core/types/search';
 import { getQuoteServiceTime } from '~/core/utils/swaps';
-import { convertAmountToRawAmount } from '~/core/utils/numbers';
+import { getProvider } from '~/core/wagmi/clientToProvider';
 import {
   Box,
   Button,
@@ -72,6 +77,7 @@ import {
   useTranslationContext,
 } from '../../hooks/useTranslationContext';
 import { getActiveElement, getInputIsFocused } from '../../utils/activeElement';
+import { GasTokenInput } from '../send';
 
 import { SwapReviewSheet } from './SwapReviewSheet/SwapReviewSheet';
 import { SwapSettings } from './SwapSettings/SwapSettings';
@@ -80,20 +86,6 @@ import { TokenToBuyInput } from './SwapTokenInput/TokenToBuyInput';
 import { TokenToSellInput } from './SwapTokenInput/TokenToSellInput';
 import { SwapTimeEstimate, getSwapTimeEstimate } from './swapTimeEstimate';
 import { useSwapButton } from './useSwapButton';
-
-import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
-
-import {
-  useCreateClusterId,
-  usePortfolio,
-  usePortfolioBalance,
-  useVirtualNodeRpcUrl,
-  convertFungibleTokensToParsedUserAssets,
-  getStandardizedTokenId,
-  getOperationsToSwap,
-  signOperationSet,
-  sendSignedOperations,
-} from '~/core/utils/orb';
 
 const SwapWarning = ({
   timeEstimate,
@@ -320,6 +312,8 @@ function SwapButton({
   showSwapReviewSheet,
   showExplainerSheet,
   hideExplainerSheet,
+  operationSet,
+  virtualNode,
 }: {
   quote: Quote | CrosschainQuote | QuoteError | undefined;
   assetToSell: ParsedSearchAsset | null;
@@ -327,21 +321,26 @@ function SwapButton({
   assetToBuy: ParsedSearchAsset | null;
   timeEstimate: SwapTimeEstimate | null;
   isLoadingQuote: boolean;
+  operationSet?: OperationSet | null;
   showSwapReviewSheet: () => void;
   showExplainerSheet: (p: ExplainerSheetProps) => void;
   hideExplainerSheet: () => void;
+  virtualNode?: Client<
+    HttpTransport,
+    undefined,
+    undefined,
+    PublicRpcSchema,
+    OrbyActions
+  >;
 }) {
   const { selectedGas } = useGasStore();
 
-  const {
-    buttonLabel: validationButtonLabel,
-    enoughAssetsForSwap,
-    readyForReview,
-  } = useSwapValidations({
-    assetToSell,
-    assetToSellValue,
-    selectedGas,
-  });
+  const { buttonLabel: validationButtonLabel, enoughAssetsForSwap } =
+    useSwapValidations({
+      assetToSell,
+      assetToSellValue,
+      selectedGas,
+    });
 
   const isDegenModeEnabled = useDegenMode((s) => s.isDegenModeEnabled);
 
@@ -363,11 +362,12 @@ function SwapButton({
     showExplainerSheet,
     hideExplainerSheet,
     showSwapReviewSheet() {
-      // if (readyForReview) showSwapReviewSheet();
       showSwapReviewSheet();
     },
     isDegenModeEnabled,
     timeEstimate,
+    operationSet,
+    virtualNode,
   });
 
   return (
@@ -378,7 +378,7 @@ function SwapButton({
       color={buttonColor}
       width="full"
       testId="swap-review-button"
-      // disabled={buttonDisabled}
+      disabled={buttonDisabled}
       tabIndex={0}
     >
       <Inline space="8px" alignVertical="center">
@@ -409,26 +409,12 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     useState<boolean>(false);
   const { isFirefox } = useBrowser();
 
-  const { testnetMode } = useTestnetModeStore();
-  const { currentAddress } = useCurrentAddressStore();
-
-  const clusterId = useCreateClusterId(currentAddress);
-  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
-    clusterId,
-    currentAddress,
-    testnetMode,
-  );
-  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
-  const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
-
-  console.log('portfolio', portfolio);
-  console.log('portfolioBalance', portfolioBalance);
-
-  const assetsToSell = portfolio
-    ? convertFungibleTokensToParsedUserAssets(portfolio.fungibleTokenBalances)
-    : [];
-
-  console.log('assetsToSell', assetsToSell);
+  const [selectedGasToken, setSelectedGasToken] = useState<GasTokenInput>({
+    name: 'no gas abstraction',
+    standardizedTokenId: undefined, // this isn't used
+    isDefault: true,
+    // url is not used for default, instead we use the chain logo
+  });
 
   // translate based on the context, bridge or swap
   const translationContext = {
@@ -468,7 +454,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   }, []);
 
   const {
-    // assetsToSell,
+    assetsToSell,
     assetToSellFilter,
     assetsToBuy,
     assetToBuyFilter,
@@ -581,7 +567,45 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
         : slippage,
   });
 
-  console.log('quote', quote);
+  const quoteData = useMemo(() => {
+    if (quote && !('error' in quote)) {
+      return quote as Quote | CrosschainQuote;
+    }
+    return undefined;
+  }, [quote]);
+
+  const [swapTransaction, setSwapTransaction] =
+    useState<PopulatedTransaction | null>(null);
+  useEffect(() => {
+    const fetchSwapTransaction = async () => {
+      if (!quoteData) {
+        return undefined;
+      }
+
+      const transaction = await populateSwap({
+        provider: getProvider({ chainId: quoteData?.chainId }),
+        quote: quoteData,
+      });
+
+      setSwapTransaction(transaction);
+    };
+
+    fetchSwapTransaction();
+  }, [quoteData]);
+
+  const { operationSet, virtualNode, aggregateFee, isLoading } =
+    useGetOperationsToExecuteTransaction(
+      swapTransaction?.from?.toLowerCase(),
+      quoteData?.chainId ? BigInt(quoteData?.chainId as number) : undefined,
+      swapTransaction?.to,
+      swapTransaction?.data as string,
+      swapTransaction?.value
+        ? BigInt(swapTransaction?.value.toString())
+        : undefined,
+      selectedGasToken.standardizedTokenId
+        ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
+        : undefined,
+    );
 
   const { assetToSellNativeDisplay, assetToBuyNativeDisplay } =
     useSwapNativeAmounts({
@@ -602,9 +626,11 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   });
 
   const showSwapReviewSheet = useCallback(() => {
-    setShowSwapReview(true);
-    setInReviewSheet(true);
-  }, []);
+    if (operationSet) {
+      setShowSwapReview(true);
+      setInReviewSheet(true);
+    }
+  }, [operationSet]);
 
   const timeEstimate = getSwapTimeEstimate(quote);
 
@@ -633,6 +659,13 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     resetSwapValues,
   } = usePopupInstanceStore();
 
+  const setOutputChain = useCallback(
+    (chainId: ChainId) => {
+      setOutputChainId?.(chainId);
+    },
+    [setOutputChainId],
+  );
+
   const [didPopulateSavedTokens, setDidPopulateSavedTokens] = useState(false);
   const [didPopulateSavedInputValues, setDidPopulateSavedInputValues] =
     useState(false);
@@ -643,6 +676,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
       const selectedSearchAsset = assetsToSell.find(
         (asset) => asset?.uniqueId === selectedTokenId,
       );
+
       if (selectedSearchAsset) {
         selectAssetToSell(selectedSearchAsset);
         // clear selected token
@@ -750,78 +784,6 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   const assetToBuyAccentColor =
     assetToBuy?.colors?.primary || assetToBuy?.colors?.fallback;
 
-  const [operationSet, setOperationSet] = useState(null);
-
-  useEffect(() => {
-    const getSwapDetails = async () => {
-      console.log('in here');
-      const outputStandardizedTokenId = await getStandardizedTokenId({
-        virtualNodeRpcUrl,
-        chainId: `EIP155-${assetToBuy?.chainId}`,
-        tokenAddress: assetToBuy?.address as Address,
-      });
-
-      console.log('standardizedTokenId', outputStandardizedTokenId);
-
-      if (outputStandardizedTokenId) {
-        const operationsToSwap = await getOperationsToSwap({
-          virtualNodeRpcUrl,
-          clusterId,
-          swapType: 'EXACT_INPUT',
-          input: {
-            standardizedTokenId: assetToSell.address,
-            amount: Number(
-              convertAmountToRawAmount(assetToSellValue, assetToSell.decimals),
-            ),
-          },
-          output: {
-            standardizedTokenId: outputStandardizedTokenId,
-            // amount: Number(
-            //   convertAmountToRawAmount(assetToBuyValue, assetToBuy.decimals),
-            // ),
-          },
-        });
-
-        console.log('operationsToSwap', operationsToSwap);
-        setOperationSet(operationsToSwap);
-      }
-    };
-
-    console.log('assetToBuy', assetToBuy);
-    console.log('assetToSell', assetToSell);
-    console.log('virtualNodeRpcUrl', virtualNodeRpcUrl);
-    if (
-      assetToBuy &&
-      assetToSell &&
-      virtualNodeRpcUrl &&
-      assetToBuyValue &&
-      assetToSellValue
-    ) {
-      getSwapDetails();
-    }
-  }, [
-    assetToBuy,
-    assetToSell,
-    virtualNodeRpcUrl,
-    assetToBuyValue,
-    assetToSellValue,
-    clusterId,
-  ]);
-
-  console.log('assetToSell', assetToSell);
-
-  const orbySwap = useCallback(async () => {
-    console.log('orbySwap here');
-    const signedOperationsResponse = await signOperationSet(operationSet);
-    const response = await sendSignedOperations({
-      clusterId,
-      signedOperations: signedOperationsResponse,
-      virtualNodeRpcUrl,
-    });
-
-    return response;
-  }, [clusterId, operationSet, virtualNodeRpcUrl]);
-
   return (
     <TranslationContext value={translationContext}>
       <Navbar
@@ -842,8 +804,6 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
         }
       />
       <SwapReviewSheet
-        operationSet={operationSet}
-        orbySwap={orbySwap}
         show={showSwapReview}
         assetToBuy={assetToBuy}
         assetToSell={assetToSell}
@@ -851,6 +811,16 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
         flashbotsEnabled={flashbotsEnabledGlobally}
         hideSwapReview={hideSwapReviewSheet}
         assetToSellValue={assetToSellValue}
+        selectedGasToken={selectedGasToken}
+        setSelectedGasToken={(token) => {
+          if (token) {
+            setSelectedGasToken(token);
+          }
+        }}
+        aggregateFee={aggregateFee}
+        operationSet={operationSet}
+        // @ts-ignore
+        virtualNode={virtualNode}
       />
       <ExplainerSheet
         show={explainerSheetParams.show}
@@ -987,7 +957,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
                   dropdownClosed={assetToBuyDropdownClosed}
                   zIndex={1}
                   placeholder={t('swap.input_token_to_receive_placeholder')}
-                  setOutputChainId={setOutputChainId}
+                  setOutputChainId={setOutputChain}
                   outputChainId={outputChainId}
                   assetFilter={assetToBuyFilter}
                   setAssetFilter={setAssetToBuyFilter}
@@ -1035,13 +1005,23 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
                         quoteServiceTime={getQuoteServiceTime({
                           quote: quote as CrosschainQuote,
                         })}
+                        selectedGasToken={selectedGasToken}
+                        setSelectedGasToken={(token) => {
+                          if (token) {
+                            setSelectedGasToken(token);
+                          }
+                        }}
+                        aggregateFee={aggregateFee}
                       />
                     </Row>
                     <Row>
                       <SwapButton
                         showSwapReviewSheet={showSwapReviewSheet}
                         quote={quote}
-                        isLoadingQuote={isLoadingQuote}
+                        operationSet={operationSet}
+                        // @ts-ignore
+                        virtualNode={virtualNode}
+                        isLoadingQuote={isLoadingQuote || isLoading}
                         assetToSell={assetToSell}
                         assetToSellValue={assetToSellValue}
                         assetToBuy={assetToBuy}

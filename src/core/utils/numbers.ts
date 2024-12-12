@@ -461,8 +461,11 @@ export const convertAmountToNativeDisplayWithThreshold = (
 export const convertRawAmountToDecimalFormat = (
   value: BigNumberish,
   decimals = 18,
+  significantDigits = 4,
 ): string =>
-  new BigNumber(value).dividedBy(new BigNumber(10).pow(decimals)).toFixed();
+  new BigNumber(value)
+    .dividedBy(new BigNumber(10).pow(decimals))
+    .toPrecision(significantDigits);
 
 /**
  * @desc convert from decimal format to raw amount
@@ -471,7 +474,7 @@ export const convertDecimalFormatToRawAmount = (
   value: string,
   decimals = 18,
 ): string =>
-  new BigNumber(value).multipliedBy(new BigNumber(10).pow(decimals)).toFixed(0);
+  new BigNumber(value).multipliedBy(new BigNumber(10).pow(decimals)).toFixed();
 
 export const fromWei = (number: BigNumberish): string =>
   convertRawAmountToDecimalFormat(number, 18);

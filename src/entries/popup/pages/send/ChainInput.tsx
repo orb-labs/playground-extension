@@ -1,27 +1,26 @@
+import { BlockchainInformation } from '@orb-labs/orby-core';
+import { AnimatePresence, motion } from 'framer-motion';
 import React, {
   useCallback,
-  useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Box, Stack, Text, Inline, Symbol } from '~/design-system';
+
+import backendNetworks from 'static/data/networks.json';
+import { Box, Inline, Stack, Text } from '~/design-system';
 import { Input } from '~/design-system/components/Input/Input';
+
+import { ChainIcon } from '../../components/CoinIcon/CoinIcon';
 import { DropdownInputWrapper } from '../../components/DropdownInputWrapper/DropdownInputWrapper';
-import { InputActionButton } from './InputActionButton';
 import { CursorTooltip } from '../../components/Tooltip/CursorTooltip';
 
-interface Chain {
-  id: number;
-  name: string;
-}
+import { InputActionButton } from './InputActionButton';
 
 interface ChainInputProps {
-  selectedChain?: Chain;
-  availableChains: Chain[];
-  onSelectChain: (chain: Chain) => void;
+  selectedChain?: BlockchainInformation;
+  availableChains?: BlockchainInformation[];
+  onSelectChain: (chain: BlockchainInformation) => void;
   onClearSelection: () => void;
   onDropdownOpen: (open: boolean) => void;
 }
@@ -29,6 +28,13 @@ interface ChainInputProps {
 interface InputRefAPI {
   blur: () => void;
   focus: () => void;
+}
+
+function getChainImage(chainId?: number) {
+  if (!chainId) return undefined;
+
+  return backendNetworks.networks.find((n) => Number(n.id) === chainId)?.icons
+    .badgeURL;
 }
 
 export const ChainInput = React.forwardRef<InputRefAPI, ChainInputProps>(
@@ -65,7 +71,7 @@ export const ChainInput = React.forwardRef<InputRefAPI, ChainInputProps>(
     }, [dropdownVisible, openDropdown, closeDropdown]);
 
     const selectChainAndCloseDropdown = useCallback(
-      (chain: Chain) => {
+      (chain: BlockchainInformation) => {
         onSelectChain(chain);
         onDropdownAction();
       },
@@ -88,8 +94,6 @@ export const ChainInput = React.forwardRef<InputRefAPI, ChainInputProps>(
       />
     );
 
-    const inputVisible = !selectedChain;
-
     return (
       <>
         <DropdownInputWrapper
@@ -97,12 +101,14 @@ export const ChainInput = React.forwardRef<InputRefAPI, ChainInputProps>(
           dropdownHeight={300}
           testId="chain-input"
           leftComponent={
-            <Box
-              background="fillQuaternary"
-              borderColor="separatorTertiary"
-              borderRadius="round"
-              borderWidth="1px"
-              style={{ height: 36, width: 36 }}
+            <ChainIcon
+              size={36}
+              url={getChainImage(
+                selectedChain?.chainId
+                  ? Number(selectedChain.chainId)
+                  : undefined,
+              )}
+              fallbackText={selectedChain?.name}
             />
           }
           centerComponent={
@@ -115,7 +121,7 @@ export const ChainInput = React.forwardRef<InputRefAPI, ChainInputProps>(
                   layout="position"
                 >
                   <AnimatePresence>
-                    {inputVisible ? (
+                    {!selectedChain ? (
                       <Box
                         as={motion.div}
                         layout="position"
@@ -123,7 +129,7 @@ export const ChainInput = React.forwardRef<InputRefAPI, ChainInputProps>(
                       >
                         <Input
                           testId="to-address-input"
-                          value={selectedChain?.id || ''}
+                          value={''}
                           placeholder={'Chain'}
                           height="32px"
                           variant="transparent"
@@ -177,24 +183,24 @@ const ChainList = ({
   chains,
   selectChainAndCloseDropdown,
 }: {
-  chains: Chain[];
-  selectChainAndCloseDropdown: (chain: Chain) => void;
+  chains?: BlockchainInformation[];
+  selectChainAndCloseDropdown: (chain: BlockchainInformation) => void;
 }) => {
   return (
     <Stack space="8px" paddingLeft="20px">
-      {chains.map((chain) => (
+      {chains?.map((chain) => (
         <Box
-          key={chain.id}
+          key={chain.chainId?.toString()}
           onClick={() => selectChainAndCloseDropdown(chain)}
           paddingBottom="8px"
         >
           <Inline alignVertical="center" space="8px">
-            <Box
-              background="fillQuaternary"
-              borderColor="separatorTertiary"
-              borderRadius="round"
-              borderWidth="1px"
-              style={{ height: 36, width: 36 }}
+            <ChainIcon
+              size={36}
+              url={getChainImage(
+                chain.chainId ? Number(chain.chainId) : undefined,
+              )}
+              fallbackText={chain.name}
             />
             <Text size="14pt" color="labelSecondary" weight="semibold">
               {chain.name}

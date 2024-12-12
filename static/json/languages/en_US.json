@@ -662,7 +662,9 @@
       "enter_valid_address": "Enter a valid address",
       "enter_address": "Enter an address",
       "enter_amount": "Enter an amount",
+      "processing": "Loading...",
       "insufficient_asset": "Insufficient %{symbol}",
+      "no_execution_path": "No execution path",
       "insufficient_native_asset_for_gas": "Insufficient %{symbol} for gas"
     },
     "wallets_list": {

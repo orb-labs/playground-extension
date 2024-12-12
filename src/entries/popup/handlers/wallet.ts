@@ -47,8 +47,6 @@ import {
 import { walletAction } from './walletAction';
 import { HARDWARE_WALLETS } from './walletVariables';
 
-import { getOperationsToTransferToken } from '~/core/utils/orb';
-
 const signMessageByType = async (
   msgData: string | Bytes,
   address: Address,
@@ -96,26 +94,6 @@ export const signTransactionFromHW = async (
   }
 };
 
-export const sendOrbyTransaction = async ({
-  clusterId,
-  virtualNodeRpcUrl,
-  operationSet,
-}: {
-  clusterId: string;
-  virtualNodeRpcUrl: string;
-  operationSet: any;
-}): Promise<TransactionResponse> => {
-  // NOTE: i'm not handling hardware wallets here, but we can add that later
-  const transactionResponse = await walletAction<TransactionResponse>(
-    'send_orby_transaction',
-    { operationSet, virtualNodeRpcUrl, clusterId },
-  );
-
-  console.log('transactionResponse', transactionResponse);
-
-  // return deserializeBigNumbers(transactionResponse);
-};
-
 export const sendTransaction = async (
   transactionRequest: TransactionRequest,
 ): Promise<TransactionResponse> => {
@@ -127,8 +105,6 @@ export const sendTransaction = async (
     transactionRequest,
     provider,
   });
-
-  console.log('selectedGas', selectedGas);
 
   const nonce =
     transactionRequest.nonce ??

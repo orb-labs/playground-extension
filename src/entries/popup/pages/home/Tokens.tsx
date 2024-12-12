@@ -1,35 +1,25 @@
+import { AddressZero } from '@ethersproject/constants';
+import { usePortfolio } from '@orb-labs/orby-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { MotionValue, motion, useTransform } from 'framer-motion';
-import uniqBy from 'lodash/uniqBy';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Address } from 'viem';
 
 import { i18n } from '~/core/languages';
 import { supportedCurrencies } from '~/core/references';
 import { shortcuts } from '~/core/references/shortcuts';
-import { selectUserAssetsList } from '~/core/resources/_selectors';
-import {
-  selectUserAssetsFilteringSmallBalancesList,
-  selectorFilterByUserChains,
-} from '~/core/resources/_selectors/assets';
-import { useUserAssets } from '~/core/resources/assets';
-import { useCustomNetworkAssets } from '~/core/resources/assets/customNetworkAssets';
 import { fetchProviderWidgetUrl } from '~/core/resources/f2c';
 import { FiatProviderName } from '~/core/resources/f2c/types';
 import { useCurrentAddressStore, useCurrentCurrencyStore } from '~/core/state';
 import { useCurrentThemeStore } from '~/core/state/currentSettings/currentTheme';
 import { useHideAssetBalancesStore } from '~/core/state/currentSettings/hideAssetBalances';
-import { useHideSmallBalancesStore } from '~/core/state/currentSettings/hideSmallBalances';
 import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
-import {
-  computeUniqueIdForHiddenAsset,
-  useHiddenAssetStore,
-} from '~/core/state/hiddenAssets/hiddenAssets';
 import { usePinnedAssetStore } from '~/core/state/pinnedAssets';
 import { ParsedUserAsset } from '~/core/types/assets';
-import { ChainId, ChainName } from '~/core/types/chains';
 import { truncateAddress } from '~/core/utils/address';
+import { getCustomChainIconUrl } from '~/core/utils/assets';
 import { isCustomChain } from '~/core/utils/chains';
+import { convertStandardizedBalanceToParsedUserAssets } from '~/core/utils/orb';
 import {
   Box,
   Column,
@@ -45,39 +35,34 @@ import { CoinRow } from '~/entries/popup/components/CoinRow/CoinRow';
 
 import { Asterisks } from '../../components/Asterisks/Asterisks';
 import { CoinbaseIcon } from '../../components/CoinbaseIcon/CoinbaseIcon';
+import ExternalImage from '../../components/ExternalImage/ExternalImage';
 import { QuickPromo } from '../../components/QuickPromo/QuickPromo';
 import useKeyboardAnalytics from '../../hooks/useKeyboardAnalytics';
 import { useKeyboardShortcut } from '../../hooks/useKeyboardShortcut';
-import { useRainbowNavigate } from '../../hooks/useRainbowNavigate';
 import { useSystemSpecificModifierKey } from '../../hooks/useSystemSpecificModifierKey';
-import { useTokenPressMouseEvents } from '../../hooks/useTokenPressMouseEvents';
 import { useTokensShortcuts } from '../../hooks/useTokensShortcuts';
-import { ROUTES } from '../../urls';
 
 import { TokensSkeleton } from './Skeletons';
 import { TokenContextMenu } from './TokenDetails/TokenContextMenu';
 import { TokenMarkedHighlighter } from './TokenMarkedHighlighter';
 
-import { convertFungibleTokenToParsedUserAsset } from '~/core/utils/orb';
-
 const TokenRow = memo(function TokenRow({
   token,
   testId,
+  onClickAsset,
 }: {
   token: ParsedUserAsset;
   testId: string;
+  onClickAsset: (standardizedTokenId?: string) => void;
 }) {
-  const navigate = useRainbowNavigate();
   const openDetails = () => {
-    navigate(ROUTES.TOKEN_DETAILS(token.uniqueId), {
-      state: { skipTransitionOnRoute: ROUTES.HOME },
-    });
+    onClickAsset(token.standardizedTokenId);
   };
 
-  const { onMouseDown, onMouseUp, onMouseLeave } = useTokenPressMouseEvents({
-    token,
-    onClick: openDetails,
-  });
+  const isParent = useMemo(
+    () => token?.relatedAssets && token?.relatedAssets.length > 0,
+    [token],
+  );
 
   return (
     <Box
@@ -88,160 +73,89 @@ const TokenRow = memo(function TokenRow({
       layout="position"
     >
       <TokenContextMenu token={token}>
-        <Box
-          onMouseDown={onMouseDown}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseLeave}
-        >
-          <AssetRow asset={token} testId={testId} />
-        </Box>
+        {isParent ? (
+          <Box onClick={openDetails}>
+            <AssetRow asset={token} testId={testId} />
+          </Box>
+        ) : (
+          <Box onClick={openDetails} paddingLeft="16px">
+            <AssetRow asset={token} testId={testId} />
+          </Box>
+        )}
       </TokenContextMenu>
     </Box>
   );
 });
 
-export function Tokens({
-  scrollY,
-  portfolio,
-}: {
-  scrollY: MotionValue<number>;
-  portfolio: any;
-}) {
+export function Tokens({ scrollY }: { scrollY: MotionValue<number> }) {
   const { currentAddress } = useCurrentAddressStore();
-  const { currentCurrency: currency } = useCurrentCurrencyStore();
   const [manuallyRefetchingTokens, setManuallyRefetchingTokens] =
     useState(false);
-  const { hideSmallBalances } = useHideSmallBalancesStore();
   const { trackShortcut } = useKeyboardAnalytics();
   const { modifierSymbol } = useSystemSpecificModifierKey();
   const { pinned: pinnedStore } = usePinnedAssetStore();
-  const { hidden } = useHiddenAssetStore();
+
+  const [combinedAssets, setCombinedAssets] = useState<ParsedUserAsset[]>([]);
+  const [isInCombinedList, setIsInCombinedList] = useState<
+    Map<string, boolean>
+  >(new Map<string, boolean>());
 
   const containerRef = useRef<HTMLDivElement>(null);
 
   const overflow = useTransform(scrollY, (p) => (p > 92 ? 'auto' : 'hidden'));
 
-  const isHidden = useCallback(
-    (asset: ParsedUserAsset) => {
-      return !!hidden[currentAddress]?.[computeUniqueIdForHiddenAsset(asset)];
-    },
-    [currentAddress, hidden],
-  );
+  const { testnetMode } = useTestnetModeStore();
+  const { portfolio, isLoading } = usePortfolio(testnetMode);
 
-  const {
-    data: assets = [],
-    isFetching,
-    isPending,
-    refetch: refetchUserAssets,
-  } = useUserAssets(
-    {
-      address: currentAddress,
-      currency,
-    },
-    {
-      select: (data) =>
-        selectorFilterByUserChains({
-          data,
-          selector: hideSmallBalances
-            ? selectUserAssetsFilteringSmallBalancesList
-            : selectUserAssetsList,
-        }),
-    },
-  );
+  useEffect(() => {
+    if (!portfolio) {
+      return;
+    }
 
-  const {
-    data: customNetworkAssets = [],
-    refetch: refetchCustomNetworkAssets,
-  } = useCustomNetworkAssets(
-    {
-      address: currentAddress,
-      currency,
-    },
-    {
-      select: (data) =>
-        selectorFilterByUserChains({
-          data,
-          selector: hideSmallBalances
-            ? selectUserAssetsFilteringSmallBalancesList
-            : selectUserAssetsList,
-        }),
-    },
-  );
+    setCombinedAssets(convertStandardizedBalanceToParsedUserAssets(portfolio));
+  }, [portfolio]);
 
-  const isPinned = useCallback(
-    (assetUniqueId: string) =>
-      !!pinnedStore[currentAddress]?.[assetUniqueId]?.pinned,
-    [currentAddress, pinnedStore],
-  );
+  console.log('isLoading', isLoading);
 
-  const combinedAssets = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          [...customNetworkAssets, ...assets].map((item) => [
-            item.uniqueId,
-            item,
-          ]),
-        ).values(),
-      ),
-    [assets, customNetworkAssets],
-  );
+  const onCombineLists = useCallback(
+    (standardizedTokenId?: string) => {
+      if (!standardizedTokenId) {
+        return;
+      }
 
-  const unhiddenAssets = useMemo(() => {
-    return combinedAssets.filter((asset) => !isHidden(asset));
-  }, [combinedAssets, isHidden]);
-
-  const computeUniqueAssets = useCallback(
-    (assets: ParsedUserAsset[]) => {
-      const filteredAssets = assets.filter(
-        ({ uniqueId }) => !isPinned(uniqueId),
+      const index = combinedAssets.findIndex(
+        (asset) => asset.uniqueId == standardizedTokenId,
       );
 
-      return uniqBy(filteredAssets, 'uniqueId').sort(
-        (a: ParsedUserAsset, b: ParsedUserAsset) =>
-          parseFloat(b?.native?.balance?.amount) -
-          parseFloat(a?.native?.balance?.amount),
-      );
-    },
-    [isPinned],
-  );
+      const parentAsset = combinedAssets[index];
 
-  const computePinnedAssets = useCallback(
-    (assets: ParsedUserAsset[]) => {
-      const filteredAssets = assets.filter((asset) => isPinned(asset.uniqueId));
+      if (isInCombinedList.get(standardizedTokenId) == true) {
+        combinedAssets.splice(index + 1, parentAsset.relatedAssets!.length);
+      } else {
+        combinedAssets.splice(index + 1, 0, ...parentAsset.relatedAssets!);
+      }
 
-      const sortedAssets = filteredAssets.sort((a, b) => {
-        const pinnedFirstAsset = pinnedStore[currentAddress]?.[a.uniqueId];
-        const pinnedSecondAsset = pinnedStore[currentAddress]?.[b.uniqueId];
-
-        // This won't happen, but we'll just return to it's
-        // default sorted order just in case it will happen
-        if (!pinnedFirstAsset || !pinnedSecondAsset) return 0;
-
-        return pinnedFirstAsset.createdAt - pinnedSecondAsset.createdAt;
+      setIsInCombinedList((prev) => {
+        prev.set(
+          standardizedTokenId,
+          !isInCombinedList.get(standardizedTokenId),
+        );
+        return prev;
       });
 
-      return sortedAssets;
+      setCombinedAssets([...combinedAssets]);
     },
-    [currentAddress, pinnedStore, isPinned],
-  );
-
-  const filteredAssets = useMemo(
-    () => [
-      ...computePinnedAssets(unhiddenAssets),
-      ...computeUniqueAssets(unhiddenAssets),
-    ],
-    [unhiddenAssets, computePinnedAssets, computeUniqueAssets],
+    [combinedAssets, isInCombinedList],
   );
 
   const assetsRowVirtualizer = useVirtualizer({
-    count: filteredAssets.length,
+    count: combinedAssets.length,
     getScrollElement: () => containerRef.current,
     estimateSize: () => 52,
     overscan: 10,
     paddingEnd: 64,
     paddingStart: 8,
-    getItemKey: (index) => filteredAssets[index].uniqueId,
+    // getItemKey: (index) => combinedAssets[index].uniqueId,
   });
 
   useKeyboardShortcut({
@@ -252,7 +166,6 @@ export function Tokens({
           type: 'tokens.refresh',
         });
         setManuallyRefetchingTokens(true);
-        await Promise.all([refetchUserAssets(), refetchCustomNetworkAssets()]);
         setManuallyRefetchingTokens(false);
       }
     },
@@ -264,13 +177,13 @@ export function Tokens({
   useEffect(() => {
     assetsRowVirtualizer?.measure();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unhiddenAssets?.length]);
+  }, [combinedAssets?.length]);
 
-  if ((isFetching && isPending) || manuallyRefetchingTokens) {
+  if (isLoading || !portfolio || manuallyRefetchingTokens) {
     return <TokensSkeleton />;
   }
 
-  if (!portfolio?.fungibleTokenBalances?.length) {
+  if (!combinedAssets?.length) {
     return <TokensEmptyState depositAddress={currentAddress} />;
   }
 
@@ -280,7 +193,7 @@ export function Tokens({
       width="full"
       style={{
         maxHeight: `1200px`,
-        // overflow: overflow,
+        overflow: overflow,
       }}
       ref={containerRef}
       paddingBottom="8px"
@@ -306,20 +219,9 @@ export function Tokens({
         }}
       >
         <Box>
-          {portfolio.fungibleTokenBalances.map((fungibleToken, index) => {
-            const token = convertFungibleTokenToParsedUserAsset(fungibleToken);
-
-            return (
-              <TokenRow
-                token={token}
-                testId={`coin-row-item-${index}`}
-                key={fungibleToken.standardizedTokenId}
-              />
-            );
-          })}
-          {/* {assetsRowVirtualizer.getVirtualItems().map((virtualItem) => {
+          {assetsRowVirtualizer.getVirtualItems().map((virtualItem) => {
             const { key, size, start, index } = virtualItem;
-            const token = filteredAssets[index];
+            const token = combinedAssets[index];
             const pinned =
               !!pinnedStore[currentAddress]?.[token.uniqueId]?.pinned;
 
@@ -336,10 +238,14 @@ export function Tokens({
                 }}
               >
                 {pinned && <TokenMarkedHighlighter />}
-                <TokenRow token={token} testId={`coin-row-item-${index}`} />
+                <TokenRow
+                  token={token}
+                  testId={`coin-row-item-${index}`}
+                  onClickAsset={onCombineLists}
+                />
               </Box>
             );
-          })} */}
+          })}
         </Box>
       </Box>
     </Box>
@@ -360,10 +266,21 @@ export const AssetRow = memo(function AssetRow({
   const { hideAssetBalances } = useHideAssetBalancesStore();
   const { currentCurrency } = useCurrentCurrencyStore();
 
-  const priceChange = asset?.native?.price?.change;
-  const priceChangeDisplay = priceChange?.length ? priceChange : '-';
-  const priceChangeColor =
-    priceChangeDisplay[0] !== '-' ? 'green' : 'labelTertiary';
+  const isParent = useMemo(() => {
+    if (!asset?.relatedAssets) {
+      return false;
+    }
+
+    return asset.relatedAssets.length > 0;
+  }, [asset]);
+
+  const size = useMemo(() => {
+    return isParent ? 36 : 24;
+  }, [isParent]);
+
+  const display = useMemo(() => {
+    return isParent ? asset.balance.display : asset.balance.displayOnchain;
+  }, [asset, isParent]);
 
   const balanceDisplay = useMemo(
     () =>
@@ -376,10 +293,10 @@ export const AssetRow = memo(function AssetRow({
         </Inline>
       ) : (
         <TextOverflow color="labelTertiary" size="12pt" weight="semibold">
-          {asset?.balance?.display}
+          {display}
         </TextOverflow>
       ),
-    [asset?.balance?.display, asset?.symbol, hideAssetBalances],
+    [display, asset?.symbol, hideAssetBalances],
   );
 
   const nativeBalanceDisplay = useMemo(
@@ -425,6 +342,28 @@ export const AssetRow = memo(function AssetRow({
     [name, nativeBalanceDisplay],
   );
 
+  const chainsList = useMemo(() => {
+    const tokenChains = asset.relatedAssets?.map((token) => {
+      const src = getCustomChainIconUrl(token.chainId!, AddressZero);
+      return (
+        <ExternalImage
+          key={token.uniqueId}
+          src={src}
+          width={16}
+          height={16}
+          borderRadius={0}
+          style={{ padding: '2px' }}
+        />
+      );
+    });
+
+    return (
+      <Box style={{ height: '12px', display: 'flex', flexDirection: 'row' }}>
+        {tokenChains}
+      </Box>
+    );
+  }, [asset]);
+
   const bottomRow = useMemo(
     () => (
       <Columns>
@@ -433,21 +372,10 @@ export const AssetRow = memo(function AssetRow({
             {balanceDisplay}
           </Box>
         </Column>
-        <Column width="content">
-          <Box paddingVertical="4px">
-            <Text
-              color={priceChangeColor}
-              size="12pt"
-              weight="semibold"
-              align="right"
-            >
-              {priceChangeDisplay}
-            </Text>
-          </Box>
-        </Column>
+        <Column width="content">{chainsList}</Column>
       </Columns>
     ),
-    [balanceDisplay, priceChangeColor, priceChangeDisplay, uniqueId],
+    [balanceDisplay, chainsList, uniqueId],
   );
 
   return (
@@ -456,6 +384,8 @@ export const AssetRow = memo(function AssetRow({
       asset={asset}
       topRow={topRow}
       bottomRow={bottomRow}
+      size={size}
+      isParent={isParent}
     />
   );
 });

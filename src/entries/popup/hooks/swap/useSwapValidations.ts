@@ -1,3 +1,4 @@
+import { CreateOperationsStatus, OperationSet } from '@orb-labs/orby-core';
 import { useMemo } from 'react';
 
 import { i18n } from '~/core/languages';
@@ -7,28 +8,25 @@ import { GasFeeLegacyParams, GasFeeParams } from '~/core/types/gas';
 import { getChain } from '~/core/utils/chains';
 import { toWei } from '~/core/utils/ethereum';
 import {
-  add,
   convertAmountToRawAmount,
   lessOrEqualThan,
-  lessThan,
 } from '~/core/utils/numbers';
-
-import { getNetworkNativeAssetUniqueId } from '../useNativeAssetForNetwork';
-import { useUserAsset } from '../useUserAsset';
 
 export const useSwapValidations = ({
   assetToSell,
   assetToSellValue,
   selectedGas,
+  operationSet,
 }: {
   assetToSell?: ParsedSearchAsset | null;
   assetToSellValue?: string;
   selectedGas?: GasFeeParams | GasFeeLegacyParams;
+  operationSet?: OperationSet | null;
 }) => {
-  const nativeAssetUniqueId = getNetworkNativeAssetUniqueId({
-    chainId: assetToSell?.chainId,
-  });
-  const { data: userNativeAsset } = useUserAsset(nativeAssetUniqueId || '');
+  // const nativeAssetUniqueId = getNetworkNativeAssetUniqueId({
+  //   chainId: assetToSell?.chainId,
+  // });
+  // const { data: userNativeAsset } = useUserAsset(nativeAssetUniqueId || '');
 
   const enoughAssetBalance = useMemo(() => {
     if (assetToSellValue) {
@@ -54,22 +52,18 @@ export const useSwapValidations = ({
   }, [assetToSell, assetToSellValue]);
 
   const enoughNativeAssetBalanceForGas = useMemo(() => {
-    if (assetToSell?.isNativeAsset) {
-      return lessOrEqualThan(
-        add(toWei(assetToSellValue || '0'), selectedGas?.gasFee?.amount || '0'),
-        toWei(userNativeAsset?.balance?.amount || '0'),
-      );
-    }
-    return lessThan(
-      selectedGas?.gasFee?.amount || '0',
-      toWei(userNativeAsset?.balance?.amount || '0'),
-    );
-  }, [
-    assetToSell?.isNativeAsset,
-    assetToSellValue,
-    userNativeAsset?.balance?.amount,
-    selectedGas?.gasFee?.amount,
-  ]);
+    return operationSet?.status != CreateOperationsStatus.INSUFFICIENT_FUNDS;
+    // if (assetToSell?.isNativeAsset) {
+    //   return lessOrEqualThan(
+    //     add(toWei(assetToSellValue || '0'), selectedGas?.gasFee?.amount || '0'),
+    //     toWei(userNativeAsset?.balance?.amount || '0'),
+    //   );
+    // }
+    // return lessThan(
+    //   selectedGas?.gasFee?.amount || '0',
+    //   toWei(userNativeAsset?.balance?.amount || '0'),
+    // );
+  }, [operationSet]);
 
   const buttonLabel = useMemo(() => {
     if (!enoughAssetBalance)

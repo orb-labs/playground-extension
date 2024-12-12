@@ -299,6 +299,7 @@ export const populateSwap = async ({
       ...(methodArgs ?? []),
       params,
     );
+
     return swapTransaction;
   } catch (e) {
     return null;

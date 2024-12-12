@@ -14,6 +14,7 @@ import { LocalStorage, SessionStorage } from '../storage';
 import { KeychainType } from '../types/keychainTypes';
 import { isLowerCaseMatch } from '../utils/strings';
 
+import { RainbowSigner } from './RainbowSigner';
 import {
   HardwareWalletKeychain,
   SerializedHardwareWalletKeychain,
@@ -536,18 +537,13 @@ class KeychainManager {
     for (let i = 0; i < this.state.keychains.length; i++) {
       const keychain = this.state.keychains[i];
       const accounts = await keychain.getAccounts();
-      console.log('address', address);
-      console.log('accounts', accounts);
-      console.log(
-        'if check',
-        accounts.map((a) => a.toLowerCase()).includes(address.toLowerCase()),
-      );
       if (
         accounts.map((a) => a.toLowerCase()).includes(address.toLowerCase())
       ) {
         return keychain;
       }
     }
+
     throw new Error('No keychain found for account');
   }
 
@@ -555,6 +551,10 @@ class KeychainManager {
     const keychain = await this.getKeychain(address);
     return keychain.getSigner(address);
   }
+
+  getRainbowSigner = async (): Promise<RainbowSigner> => {
+    return keychainManager.getRainbowSigner();
+  };
 }
 
 export const keychainManager = new KeychainManager();

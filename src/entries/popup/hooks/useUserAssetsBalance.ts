@@ -1,3 +1,4 @@
+import { usePortfolioOverview } from '@orb-labs/orby-react';
 import { useCallback } from 'react';
 import { Address } from 'viem';
 
@@ -9,13 +10,18 @@ import {
 import { useUserAssets } from '~/core/resources/assets';
 import { useCustomNetworkAssets } from '~/core/resources/assets/customNetworkAssets';
 import { useCurrentAddressStore, useCurrentCurrencyStore } from '~/core/state';
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 import {
   computeUniqueIdForHiddenAsset,
   useHiddenAssetStore,
 } from '~/core/state/hiddenAssets/hiddenAssets';
 import { ParsedUserAsset } from '~/core/types/assets';
 import { ChainId } from '~/core/types/chains';
-import { add, convertAmountToNativeDisplay } from '~/core/utils/numbers';
+import {
+  add,
+  convertAmountToNativeDisplay,
+  convertRawAmountToDecimalFormat,
+} from '~/core/utils/numbers';
 
 export function useUserAssetsBalance(args?: {
   chain?: ChainId;
@@ -76,10 +82,19 @@ export function useUserAssetsBalance(args?: {
       ? add(totalAssetsBalanceKnownNetworks, totalAssetsBalanceCustomNetworks)
       : undefined;
 
+  const { testnetMode } = useTestnetModeStore();
+  const { portfolioOverview } = usePortfolioOverview(testnetMode);
+
   return {
     amount: totalAssetsBalance,
-    display: totalAssetsBalance
-      ? convertAmountToNativeDisplay(totalAssetsBalance, currency || currentCurrency)
+    display: portfolioOverview
+      ? convertAmountToNativeDisplay(
+          convertRawAmountToDecimalFormat(
+            portfolioOverview?.totalValueInFiat?.toRawAmount()?.toString(),
+            portfolioOverview?.totalValueInFiat?.currency.decimals,
+          ),
+          currentCurrency,
+        )
       : undefined,
     isLoading: knownNetworksIsLoading || customNetworksIsLoading,
   };

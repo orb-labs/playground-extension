@@ -1,3 +1,6 @@
+import { OperationStatus, OperationStatusType } from '@orb-labs/orby-core';
+import { useGetOperationsToSignTypedData, useOrby } from '@orb-labs/orby-react';
+import _ from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { analytics } from '~/analytics';
@@ -8,6 +11,7 @@ import { useFeatureFlagsStore } from '~/core/state/currentSettings/featureFlags'
 import { ProviderRequestPayload } from '~/core/transports/providerRequestTransport';
 import { RPCMethod } from '~/core/types/rpcMethods';
 import { POPUP_DIMENSIONS } from '~/core/utils/dimensions';
+import { signOperation } from '~/core/utils/orb';
 import { getSigningRequestDisplayDetails } from '~/core/utils/signMessages';
 import { Bleed, Box, Stack } from '~/design-system';
 import { triggerAlert } from '~/design-system/components/Alert/Alert';
@@ -21,14 +25,6 @@ import { AccountSigningWith } from '../AccountSigningWith';
 
 import { SignMessageActions } from './SignMessageActions';
 import { SignMessageInfo } from './SignMessageInfo';
-import {
-  signOperationSet,
-  useCreateClusterId,
-  sendSignedOperations,
-  useVirtualNodeRpcUrl,
-  getOperationsToSignTypedData,
-} from '~/core/utils/orb';
-import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 
 interface ApproveRequestProps {
   approveRequest: (payload: unknown) => void;
@@ -65,63 +61,56 @@ export function SignMessage({
 
   const selectedWallet = activeSession?.address;
 
-  const { testnetMode } = useTestnetModeStore();
+  const requestPayload = useMemo(() => {
+    return getSigningRequestDisplayDetails(request);
+  }, [request]);
 
-  // TODO: create hook for orby_getOperationsToSignTypedData here and display the operations
+  const { accountCluster, baseMainnetClient } = useOrby();
 
-  const clusterId = useCreateClusterId(selectedWallet);
-  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
-    clusterId,
-    selectedWallet,
-    testnetMode,
+  const { operations, operationSet, virtualNode } =
+    useGetOperationsToSignTypedData(
+      request?.method == 'personal_sign'
+        ? ''
+        : JSON.stringify(requestPayload.msgData),
+      activeSession?.address?.toLowerCase(),
+      activeSession?.chainId ? BigInt(activeSession.chainId) : undefined,
+    );
+
+  const operationStatusesUpdated = useCallback(
+    async (
+      statusSummary: OperationStatusType,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _finalTransactionStatus?: OperationStatus,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _statuses?: OperationStatus[],
+    ) => {
+      if (
+        requestPayload.address &&
+        [OperationStatusType.SUCCESSFUL, OperationStatusType.PENDING].includes(
+          statusSummary,
+        )
+      ) {
+        const result = await wallet.signTypedData(
+          requestPayload.msgData,
+          requestPayload.address,
+        );
+
+        analytics.track(event.dappPromptSignTypedDataApproved, {
+          dappURL: dappMetadata?.appHost || '',
+          dappName: dappMetadata?.appName,
+        });
+
+        approveRequest(result);
+      }
+    },
+    [
+      approveRequest,
+      dappMetadata?.appHost,
+      dappMetadata?.appName,
+      requestPayload.address,
+      requestPayload.msgData,
+    ],
   );
-
-  console.log('clusterId', clusterId);
-  console.log('virtualNodeRpcUrl', virtualNodeRpcUrl);
-
-  const [operations, setOperations] = useState(null);
-
-  useEffect(() => {
-    console.log('in useEffect');
-    const getOperations = async ({
-      virtualNodeRpcUrl,
-      to,
-      data,
-      clusterId,
-    }) => {
-      const operationSet = await getOperationsToSignTypedData({
-        to,
-        data,
-        clusterId,
-        virtualNodeRpcUrl,
-      });
-
-      console.log('operationSet', operationSet);
-
-      const operations = operationSet.intents
-        .map((intent) => intent.intentOperations)
-        .flat()
-        ?.concat(operationSet.primaryOperation)
-        .filter((value) => value !== undefined && value !== null);
-
-      console.log('operations before setting', operations);
-
-      setOperations(operations);
-    };
-
-    if (clusterId && virtualNodeRpcUrl && request) {
-      console.log('before get operations');
-
-      const requestPayload = getSigningRequestDisplayDetails(request);
-
-      getOperations({
-        clusterId,
-        virtualNodeRpcUrl,
-        to: requestPayload.address,
-        data: requestPayload.msgData,
-      });
-    }
-  }, [clusterId, virtualNodeRpcUrl, request, selectedWallet]);
 
   const onAcceptRequest = useCallback(async () => {
     const walletAction = getWalletActionMethod(request?.method);
@@ -129,10 +118,8 @@ export function SignMessage({
     if (!requestPayload.msgData || !requestPayload.address || !selectedWallet)
       return;
     const { type } = await wallet.getWallet(selectedWallet);
-    let result = null;
 
     setLoading(true);
-    let hash;
     try {
       // Change the label while we wait for confirmation
       if (type === 'HardwareWalletKeychain') {
@@ -140,37 +127,50 @@ export function SignMessage({
       }
 
       if (walletAction === 'personal_sign') {
-        result = await wallet.personalSign(
+        const result = await wallet.personalSign(
           requestPayload.msgData,
           requestPayload.address,
         );
+
         analytics.track(event.dappPromptSignMessageApproved, {
           dappURL: dappMetadata?.appHost || '',
           dappName: dappMetadata?.appName,
         });
-        hash = result;
-        // TODO: use orby_sendSignedOperations
-      } else if (walletAction === 'sign_typed_data') {
-        const signedOperations = await signOperationSet(operations);
-        console.log('signedOperations: ', signedOperations);
-        const result = await sendSignedOperations({
-          clusterId,
-          signedOperations,
-          virtualNodeRpcUrl,
-        });
-        console.log('result', result);
-        hash = result.hash;
 
-        // result = await wallet.signTypedData(
-        //   requestPayload.msgData,
-        //   requestPayload.address,
-        // );
-        analytics.track(event.dappPromptSignTypedDataApproved, {
-          dappURL: dappMetadata?.appHost || '',
-          dappName: dappMetadata?.appName,
-        });
+        approveRequest(result);
+      } else if (walletAction === 'sign_typed_data') {
+        if (!accountCluster || !virtualNode || !operationSet) {
+          console.error('Missing data for sign typed data');
+          approveRequest(null);
+          return;
+        }
+
+        const { success, operationResponses } =
+          await virtualNode.sendOperationSet(
+            accountCluster.accountClusterId,
+            operationSet,
+            signOperation,
+          );
+
+        if (!success) {
+          console.error('Error sending operation set');
+          approveRequest(null);
+          return;
+        }
+
+        if (operationResponses && operationResponses.length === 0) {
+          console.error('No operation responses');
+          operationStatusesUpdated(OperationStatusType.SUCCESSFUL);
+        } else {
+          const ids = operationResponses
+            ?.map((op) => op.id)
+            .filter((id) => !_.isUndefined(id));
+          baseMainnetClient?.subscribeToOperationStatuses(
+            ids,
+            operationStatusesUpdated,
+          );
+        }
       }
-      approveRequest(hash);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       showLedgerDisconnectedAlertIfNeeded(e);
@@ -181,14 +181,16 @@ export function SignMessage({
       setLoading(false);
     }
   }, [
-    approveRequest,
-    dappMetadata?.appHost,
-    dappMetadata?.appName,
     request,
     selectedWallet,
-    clusterId,
-    virtualNodeRpcUrl,
-    operations,
+    dappMetadata?.appHost,
+    dappMetadata?.appName,
+    approveRequest,
+    accountCluster,
+    virtualNode,
+    operationSet,
+    baseMainnetClient,
+    operationStatusesUpdated,
   ]);
 
   const onRejectRequest = useCallback(() => {
@@ -232,7 +234,11 @@ export function SignMessage({
       flexDirection="column"
       style={{ height: POPUP_DIMENSIONS.height, overflow: 'hidden' }}
     >
-      <SignMessageInfo request={request} operations={operations} />
+      <SignMessageInfo
+        request={request}
+        operationSet={operationSet}
+        operations={operations}
+      />
       <Stack space="20px" padding="20px">
         <Bleed vertical="4px">
           <AccountSigningWith session={activeSession} noFee />

@@ -52,22 +52,9 @@ import { Points } from './Points/Points';
 import { TabHeader } from './TabHeader';
 import { Tokens } from './Tokens';
 
-import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
-
-import {
-  useCreateClusterId,
-  usePortfolio,
-  usePortfolioBalance,
-  useVirtualNodeRpcUrl,
-  convertFungibleTokenToParsedUserAsset,
-} from '~/core/utils/orb';
-
 const TOP_NAV_HEIGHT = 65;
 
-const Tabs = memo(function Tabs(props: {
-  portfolio: any;
-  portfolioBalance: any;
-}) {
+const Tabs = memo(function Tabs() {
   const { trackShortcut } = useKeyboardAnalytics();
   const { visibleTokenCount } = useVisibleTokenCount();
 
@@ -142,19 +129,13 @@ const Tabs = memo(function Tabs(props: {
 
   return (
     <>
-      <TabBar
-        balance={props.portfolioBalance}
-        activeTab={activeTab}
-        setActiveTab={onSelectTab}
-      />
+      <TabBar activeTab={activeTab} setActiveTab={onSelectTab} />
       <Box
         background="surfacePrimaryElevated"
         style={{ flex: 1, position: 'relative', contentVisibility: 'visible' }}
         height="full"
       >
-        {activeTab === 'tokens' && (
-          <Tokens portfolio={props.portfolio} scrollY={scrollY} />
-        )}
+        {activeTab === 'tokens' && <Tokens scrollY={scrollY} />}
         {activeTab === 'activity' && <Activities />}
         {activeTab === 'nfts' && <NFTs />}
         {activeTab === 'points' && <Points />}
@@ -170,17 +151,6 @@ export const Home = memo(function Home() {
   const navigate = useRainbowNavigate();
   const { pendingRequests } = usePendingRequestStore();
   const prevPendingRequest = usePrevious(pendingRequests?.[0]);
-
-  const { testnetMode } = useTestnetModeStore();
-
-  const clusterId = useCreateClusterId(currentAddress);
-  const virtualNodeRpcUrl = useVirtualNodeRpcUrl(
-    clusterId,
-    currentAddress,
-    testnetMode,
-  );
-  const portfolio = usePortfolio(clusterId, virtualNodeRpcUrl);
-  const portfolioBalance = usePortfolioBalance(clusterId, virtualNodeRpcUrl);
 
   useEffect(() => {
     if (
@@ -235,10 +205,10 @@ export const Home = memo(function Home() {
           >
             <TopNav />
             <Header />
-            <Tabs portfolio={portfolio} portfolioBalance={portfolioBalance} />
+            <Tabs />
             <AppConnectionWalletSwitcher />
           </motion.div>
-          {/* <NewTabBar /> */}
+          <NewTabBar />
           <BackupReminder />
           {currentHomeSheet}
           <RevokeApproval />
@@ -325,11 +295,9 @@ const TopNav = memo(function TopNav() {
 function TabBar({
   activeTab,
   setActiveTab,
-  balance,
 }: {
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
-  balance: string;
 }) {
   return (
     <StickyHeader

@@ -1,8 +1,20 @@
+import {
+  CreateOperationsStatus,
+  OperationSet,
+  OperationStatus,
+  OperationStatusType,
+  OperationType,
+} from '@orb-labs/orby-core';
+import { useOrby } from '@orb-labs/orby-react';
+import { OrbyActions } from '@orb-labs/orby-viem-extension';
 import { CrosschainQuote, Quote, QuoteError } from '@rainbow-me/swaps';
-import React, { useState } from 'react';
+import _ from 'lodash';
+import React, { useCallback, useState } from 'react';
+import { Client, HttpTransport, PublicRpcSchema } from 'viem';
 
 import { ParsedSearchAsset } from '~/core/types/assets';
 import { KeychainType } from '~/core/types/keychainTypes';
+import { signOperation } from '~/core/utils/orb';
 import { Bleed, Box, Inline, Symbol } from '~/design-system';
 import { TextStyles } from '~/design-system/styles/core.css';
 import {
@@ -36,6 +48,14 @@ interface UseSwapButtonArgs {
   showSwapReviewSheet: () => void;
   isDegenModeEnabled: boolean;
   timeEstimate: SwapTimeEstimate | null;
+  operationSet?: OperationSet | null;
+  virtualNode?: Client<
+    HttpTransport,
+    undefined,
+    undefined,
+    PublicRpcSchema,
+    OrbyActions
+  >;
 }
 
 interface SwapButton {
@@ -50,168 +70,223 @@ interface SwapButton {
 
 export const useSwapButton = ({
   quote,
+  operationSet,
   isLoading,
   assetToSell,
   assetToBuy,
-  enoughAssetsForSwap,
   validationButtonLabel,
   hideExplainerSheet,
   showExplainerSheet,
   showSwapReviewSheet,
   isDegenModeEnabled,
   timeEstimate,
+  virtualNode,
 }: UseSwapButtonArgs): SwapButton => {
   const [status, setStatus] = useState<'idle' | 'degen_swapping'>('idle');
+  const [isSendingFinalTransaction, setIsSendSendingFinalTransaction] =
+    useState<boolean>(false);
   const t = useTranslationContext();
   const navigate = useRainbowNavigate();
   const { type } = useCurrentWalletTypeAndVendor();
+  const { accountCluster, baseMainnetClient } = useOrby();
   const isHardwareWallet = type === KeychainType.HardwareWalletKeychain;
 
-  // if (isLoading) {
-  //   return {
-  //     buttonColor: 'surfaceSecondary',
-  //     buttonLabelColor: 'labelQuaternary',
-  //     buttonDisabled: true,
-  //     buttonLabel: t('swap.actions.loading'),
-  //     buttonIcon: (
-  //       <Box
-  //         width="fit"
-  //         alignItems="center"
-  //         justifyContent="center"
-  //         style={{ margin: 'auto' }}
-  //       >
-  //         <Spinner size={16} color="labelQuaternary" />
-  //       </Box>
-  //     ),
-  //     buttonAction: () => null,
-  //     status: 'loading',
-  //   };
-  // }
+  const operationStatusesUpdated = useCallback(
+    async (
+      statusSummary: OperationStatusType,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _finalTransactionStatus?: OperationStatus,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _statuses?: OperationStatus[],
+    ) => {
+      if (
+        !isSendingFinalTransaction &&
+        [
+          (OperationStatusType.SUCCESSFUL, OperationStatusType.PENDING),
+        ].includes(statusSummary)
+      ) {
+        setIsSendSendingFinalTransaction(true);
+        const swapExecutedSuccessfully = await onSwap({
+          quote: quote as Quote,
+          assetToSell,
+          assetToBuy,
+          degenMode: true,
+        });
 
-  // if (!quote) {
-  //   return {
-  //     buttonColor: 'surfaceSecondary',
-  //     buttonDisabled: true,
-  //     buttonLabel: t('swap.actions.enter_an_amount'),
-  //     buttonLabelColor: 'labelQuaternary',
-  //     buttonIcon: null,
-  //     buttonAction: () => null,
-  //     status: 'error',
-  //   };
-  // }
+        if (swapExecutedSuccessfully) {
+          navigate(ROUTES.HOME, { state: { tab: 'activity' } });
+        }
+      }
+    },
+    [isSendingFinalTransaction, navigate, quote, assetToSell, assetToBuy],
+  );
 
-  // if (!(quote as QuoteError).error) {
-  //   if (!enoughAssetsForSwap) {
-  //     return {
-  //       buttonColor: 'fillSecondary',
-  //       buttonDisabled: true,
-  //       buttonLabel: validationButtonLabel,
-  //       buttonLabelColor: 'label',
-  //       buttonIcon: null,
-  //       buttonAction: () => null,
-  //       status: 'ready',
-  //     };
-  //   }
+  if (isLoading) {
+    return {
+      buttonColor: 'surfaceSecondary',
+      buttonLabelColor: 'labelQuaternary',
+      buttonDisabled: true,
+      buttonLabel: t('swap.actions.loading'),
+      buttonIcon: (
+        <Box
+          width="fit"
+          alignItems="center"
+          justifyContent="center"
+          style={{ margin: 'auto' }}
+        >
+          <Spinner size={16} color="labelQuaternary" />
+        </Box>
+      ),
+      buttonAction: () => null,
+      status: 'loading',
+    };
+  }
 
-  //   if (isDegenModeEnabled) {
-  //     if (status === 'degen_swapping') {
-  //       return {
-  //         buttonColor: 'surfaceSecondary',
-  //         buttonDisabled: true,
-  //         buttonLabel: isHardwareWallet
-  //           ? t('swap.actions.waiting_signature')
-  //           : t('swap.actions.swapping'),
-  //         buttonLabelColor: 'labelQuaternary',
-  //         buttonIcon: (
-  //           <Box
-  //             width="fit"
-  //             alignItems="center"
-  //             justifyContent="center"
-  //             style={{ margin: 'auto' }}
-  //           >
-  //             <Spinner size={16} color="labelQuaternary" />
-  //           </Box>
-  //         ),
-  //         buttonAction: () => null,
-  //         status: 'ready',
-  //       };
-  //     }
+  if (!quote) {
+    return {
+      buttonColor: 'surfaceSecondary',
+      buttonDisabled: true,
+      buttonLabel: t('swap.actions.enter_an_amount'),
+      buttonLabelColor: 'labelQuaternary',
+      buttonIcon: null,
+      buttonAction: () => null,
+      status: 'error',
+    };
+  }
 
-  //   return {
-  //     buttonColor: 'accent',
-  //     buttonDisabled: false,
-  //     buttonLabel: t('swap.actions.swap'),
-  //     buttonLabelColor: 'label',
-  //     buttonIcon: null,
-  //     buttonAction: async () => {
-  //       setStatus('degen_swapping');
-  //       const swapExecutedSuccessfully = await onSwap({
-  //         quote,
-  //         assetToSell,
-  //         assetToBuy,
-  //         degenMode: true,
-  //       });
-  //       setStatus('idle');
-  //       if (swapExecutedSuccessfully) {
-  //         navigate(ROUTES.HOME, { state: { tab: 'activity' } });
-  //       }
-  //     },
-  //     status: 'ready',
-  //   };
-  // }
+  if (!(quote as QuoteError).error) {
+    if (operationSet?.status == CreateOperationsStatus.INSUFFICIENT_FUNDS) {
+      return {
+        buttonColor: 'fillSecondary',
+        buttonDisabled: true,
+        buttonLabel: validationButtonLabel,
+        buttonLabelColor: 'label',
+        buttonIcon: null,
+        buttonAction: () => null,
+        status: 'ready',
+      };
+    }
 
-  return {
-    buttonColor: 'accent',
-    buttonDisabled: false,
-    buttonLabel: t('swap.actions.review'),
-    buttonLabelColor: 'label',
-    buttonIcon: (
-      <Symbol symbol="doc.text.magnifyingglass" weight="bold" size={16} />
-    ),
-    buttonAction: timeEstimate?.isLongWait
-      ? () =>
-          showExplainerSheet({
-            show: true,
-            header: {
-              icon: (
-                <Box>
-                  <Box>
-                    <CoinIcon asset={assetToSell} size={40} />
-                  </Box>
-                  <Box width="full">
-                    <Inline alignHorizontal="right">
-                      <Bleed right="10px" top="19px">
-                        <Symbol
-                          symbol="exclamationmark.triangle.fill"
-                          size={20}
-                          color="orange"
-                          weight="bold"
-                        />
-                      </Bleed>
-                    </Inline>
-                  </Box>
-                </Box>
-              ),
-            },
-            title: t('swap.explainers.long_wait.title'),
-            description: [t('swap.explainers.long_wait.description')],
-            actionButton: {
-              label: t('swap.explainers.long_wait.action_label'),
-              variant: 'tinted',
-              labelColor: 'blue',
-              action: () => {
-                hideExplainerSheet();
-                showSwapReviewSheet();
-              },
-            },
-            testId: 'swap-long-wait',
-          })
-      : () => {
-          showSwapReviewSheet();
+    if (isDegenModeEnabled) {
+      if (status === 'degen_swapping') {
+        return {
+          buttonColor: 'surfaceSecondary',
+          buttonDisabled: true,
+          buttonLabel: isHardwareWallet
+            ? t('swap.actions.waiting_signature')
+            : t('swap.actions.swapping'),
+          buttonLabelColor: 'labelQuaternary',
+          buttonIcon: (
+            <Box
+              width="fit"
+              alignItems="center"
+              justifyContent="center"
+              style={{ margin: 'auto' }}
+            >
+              <Spinner size={16} color="labelQuaternary" />
+            </Box>
+          ),
+          buttonAction: () => null,
+          status: 'ready',
+        };
+      }
+
+      return {
+        buttonColor: 'accent',
+        buttonDisabled: false,
+        buttonLabel: t('swap.actions.swap'),
+        buttonLabelColor: 'label',
+        buttonIcon: null,
+        buttonAction: async () => {
+          setStatus('degen_swapping');
+          if (virtualNode && accountCluster && operationSet) {
+            operationSet.primaryOperation = undefined;
+
+            const operation = operationSet.intents
+              ?.map((intent) => intent.intentOperations)
+              ?.flat()
+              ?.find(
+                (operation) => operation?.type == OperationType.SUBMIT_INTENT,
+              );
+
+            if (operation) {
+              operation.type = OperationType.FINAL_TRANSACTION;
+            }
+
+            const { operationResponses } = await virtualNode.sendOperationSet(
+              accountCluster.accountClusterId,
+              operationSet,
+              signOperation,
+            );
+
+            const ids = operationResponses
+              ?.map((op) => op.id)
+              .filter((id) => !_.isUndefined(id));
+
+            baseMainnetClient?.subscribeToOperationStatuses(
+              ids,
+              operationStatusesUpdated,
+            );
+          }
+
+          setStatus('idle');
         },
-    status: 'ready',
-  };
-  // };
+        status: 'ready',
+      };
+    }
+
+    return {
+      buttonColor: 'accent',
+      buttonDisabled: false,
+      buttonLabel: t('swap.actions.review'),
+      buttonLabelColor: 'label',
+      buttonIcon: (
+        <Symbol symbol="doc.text.magnifyingglass" weight="bold" size={16} />
+      ),
+      buttonAction: timeEstimate?.isLongWait
+        ? () =>
+            showExplainerSheet({
+              show: true,
+              header: {
+                icon: (
+                  <Box>
+                    <Box>
+                      <CoinIcon asset={assetToSell} size={40} />
+                    </Box>
+                    <Box width="full">
+                      <Inline alignHorizontal="right">
+                        <Bleed right="10px" top="19px">
+                          <Symbol
+                            symbol="exclamationmark.triangle.fill"
+                            size={20}
+                            color="orange"
+                            weight="bold"
+                          />
+                        </Bleed>
+                      </Inline>
+                    </Box>
+                  </Box>
+                ),
+              },
+              title: t('swap.explainers.long_wait.title'),
+              description: [t('swap.explainers.long_wait.description')],
+              actionButton: {
+                label: t('swap.explainers.long_wait.action_label'),
+                variant: 'tinted',
+                labelColor: 'blue',
+                action: () => {
+                  hideExplainerSheet();
+                  showSwapReviewSheet();
+                },
+              },
+              testId: 'swap-long-wait',
+            })
+        : () => {
+            showSwapReviewSheet();
+          },
+      status: 'ready',
+    };
+  }
 
   switch ((quote as QuoteError).error_code) {
     case 502:

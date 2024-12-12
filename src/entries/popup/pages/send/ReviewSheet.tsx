@@ -1,3 +1,4 @@
+import { OperationSet, OperationStatusType } from '@orb-labs/orby-core';
 import { motion } from 'framer-motion';
 import React, {
   useCallback,
@@ -74,6 +75,8 @@ import { useWallets } from '../../hooks/useWallets';
 import playSound from '../../utils/playSound';
 
 import { ContactAction } from './ContactPrompt';
+
+import { OperationSetStatus } from '.';
 
 const EditContactDropdown = ({
   chainId,
@@ -256,7 +259,10 @@ export const ReviewSheet = ({
   onSend,
   onSaveContactAction,
   operationSet,
+  operationSetStatus,
 }: {
+  operationSetStatus?: OperationSetStatus;
+  operationSet?: OperationSet;
   show: boolean;
   toAddress: Address;
   asset?: ParsedUserAsset | null;
@@ -272,13 +278,12 @@ export const ReviewSheet = ({
       action: ContactAction;
     }>
   >;
-  operationSet: any;
 }) => {
   const { visibleOwnedWallets } = useWallets();
   const [notSendingOnEthereumChecks, setNotSendingOnEthereumChecks] =
     useState(false);
   const prevShow = usePrevious(show);
-  const [sending, setSending] = useState(false);
+  // const [sending, setSending] = useState(false);
   const confirmSendButtonRef = useRef<HTMLButtonElement>(null);
   const { chains } = wagmiConfig;
   const assetChainId =
@@ -319,18 +324,18 @@ export const ReviewSheet = ({
   );
 
   const handleSend = useCallback(async () => {
-    if (sendEnabled && !sending) {
-      setSending(true);
+    if (sendEnabled && !operationSetStatus?.statusSummary) {
+      // setSending(true);
       try {
         await onSend();
         playSound('SendSound');
       } catch (e) {
         //
       } finally {
-        setSending(false);
+        // setSending(false);
       }
     }
-  }, [onSend, sendEnabled, sending]);
+  }, [onSend, sendEnabled, operationSetStatus?.statusSummary]);
 
   const { explainerSheetParams, showExplainerSheet, hideExplainerSheet } =
     useExplainerSheetParams();
@@ -357,28 +362,6 @@ export const ReviewSheet = ({
       }, 500);
     }
   }, [show]);
-
-  console.log('operationSet', operationSet);
-  const operations =
-    operationSet && operationSet.intents
-      ? operationSet.intents
-          .map((intent) => intent.intentOperations)
-          .flat()
-          ?.concat(operationSet.primaryOperation)
-          .filter(
-            (value) =>
-              value !== undefined &&
-              value !== null &&
-              value.type === 'SUBMIT_INTENT',
-          )
-      : [];
-  console.log('operations', operations);
-  const inputStates = operations
-    ? operations.flatMap(
-        (operation) => operation.inputState.fungibleTokenAmounts,
-      )
-    : [];
-  console.log('inputStates', inputStates);
 
   return (
     <>
@@ -568,34 +551,39 @@ export const ReviewSheet = ({
             </Box>
           </Stack>
 
-          <Box paddingHorizontal="16px">
-            {inputStates.map((input, i) => (
-              <Box key={i} paddingVertical="8px">
-                <Inline key={i} alignVertical="center">
-                  <Symbol
-                    size={14}
-                    symbol="arrow.up.circle.fill"
-                    weight="bold"
-                    color="red"
-                  />
-                  <Box paddingLeft="10px">
-                    <Text key={i} size="14pt" weight="bold" color="label">
-                      Use{' '}
-                      {handleSignificantDecimalsWithThreshold(
-                        formatUnits(
-                          input.amount,
-                          input.token.currency.decimals,
-                        ),
-                        2,
-                      )}{' '}
-                      {input.token.currency.asset.symbol} from{' '}
-                      {getChain({ chainId: Number(input.token.chainId) }).name}
-                    </Text>
-                  </Box>
-                </Inline>
-              </Box>
-            ))}
-          </Box>
+          {operationSet?.inputState && (
+            <Box paddingHorizontal="16px">
+              {operationSet?.inputState.getFungibleTokens()?.map((input, i) => (
+                <Box key={i} paddingVertical="8px">
+                  <Inline key={i} alignVertical="center">
+                    <Symbol
+                      size={14}
+                      symbol="arrow.up.circle.fill"
+                      weight="bold"
+                      color="red"
+                    />
+                    <Box paddingLeft="10px">
+                      <Text key={i} size="14pt" weight="bold" color="label">
+                        Use{' '}
+                        {handleSignificantDecimalsWithThreshold(
+                          formatUnits(
+                            input.toRawAmount(),
+                            input.token.decimals,
+                          ),
+                          2,
+                        )}{' '}
+                        {input.token.symbol} from{' '}
+                        {
+                          getChain({ chainId: Number(input.token.chainId) })
+                            .name
+                        }
+                      </Text>
+                    </Box>
+                  </Inline>
+                </Box>
+              ))}
+            </Box>
+          )}
 
           {notSendingOnEthereum && !isToWalletOwner && (
             <Box paddingHorizontal="16px" paddingBottom="20px">
@@ -703,11 +691,15 @@ export const ReviewSheet = ({
                 testId="review-confirm-button"
                 tabIndex={0}
                 ref={confirmSendButtonRef}
-                disabled={sending}
+                disabled={
+                  operationSetStatus?.finalTransactionStatus?.status ==
+                  OperationStatusType.WAITING_PRECONDITION
+                }
               >
                 {sendEnabled ? (
                   <Box>
-                    {sending ? (
+                    {operationSetStatus?.finalTransactionStatus?.status ==
+                    OperationStatusType.WAITING_PRECONDITION ? (
                       <Box
                         width="fit"
                         alignItems="center"

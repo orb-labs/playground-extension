@@ -1,3 +1,6 @@
+import { Account, AccountType, VMType } from '@orb-labs/orby-core';
+import { removeConnectedAppSession } from '@orb-labs/orby-core-mini';
+import { connectAppSession, useOrby } from '@orb-labs/orby-react';
 import * as React from 'react';
 import { Address } from 'viem';
 
@@ -21,6 +24,8 @@ export function useAppSession({ host = '' }: { host?: string }) {
     getActiveSession,
   } = useAppSessionsStore();
 
+  const { baseMainnetClient } = useOrby();
+
   const activeSession = getActiveSession({ host });
   const clearAppHasInteractedWithNudgeSheet =
     useAppConnectionWalletSwitcherStore.use.clearAppHasInteractedWithNudgeSheet();
@@ -33,8 +38,17 @@ export function useAppSession({ host = '' }: { host?: string }) {
         `chainChanged:${host}`,
         appSessions[host].sessions[address],
       );
+
+      const account = new Account(
+        address?.toLowerCase(),
+        AccountType.EOA,
+        VMType.EVM,
+        undefined,
+      );
+
+      connectAppSession([account], host, baseMainnetClient);
     },
-    [appSessions, host, storeUpdateActiveSession],
+    [appSessions, baseMainnetClient, host, storeUpdateActiveSession],
   );
 
   const addSession = React.useCallback(
@@ -57,8 +71,17 @@ export function useAppSession({ host = '' }: { host?: string }) {
           chainId: toHex(String(chainId)),
         });
       }
+
+      const account = new Account(
+        address?.toLowerCase(),
+        AccountType.EOA,
+        VMType.EVM,
+        undefined,
+      );
+
+      connectAppSession([account], host, baseMainnetClient);
     },
-    [storeAddSession],
+    [baseMainnetClient, storeAddSession],
   );
 
   const updateAppSessionChainId = React.useCallback(
@@ -96,24 +119,30 @@ export function useAppSession({ host = '' }: { host?: string }) {
     ({ address, host }: { address: Address; host: string }) => {
       const newActiveSession = removeSession({ host, address });
       if (newActiveSession) {
+        const account = new Account(
+          address?.toLowerCase(),
+          AccountType.EOA,
+          VMType.EVM,
+          undefined,
+        );
+
+        connectAppSession([account], host, baseMainnetClient);
         messenger.send(`accountsChanged:${host}`, newActiveSession?.address);
         messenger.send(`chainChanged:${host}`, newActiveSession?.chainId);
       } else {
+        removeConnectedAppSession(host);
         messenger.send(`disconnect:${host}`, []);
-        clearAppHasInteractedWithNudgeSheet({
-          host: host,
-        });
+        clearAppHasInteractedWithNudgeSheet({ host: host });
       }
     },
-    [clearAppHasInteractedWithNudgeSheet, removeSession],
+    [baseMainnetClient, clearAppHasInteractedWithNudgeSheet, removeSession],
   );
 
   const disconnectAppSession = React.useCallback(() => {
     messenger.send(`disconnect:${host}`, null);
     removeAppSession({ host });
-    clearAppHasInteractedWithNudgeSheet({
-      host: host,
-    });
+    clearAppHasInteractedWithNudgeSheet({ host: host });
+    removeConnectedAppSession(host);
   }, [host, removeAppSession, clearAppHasInteractedWithNudgeSheet]);
 
   return {

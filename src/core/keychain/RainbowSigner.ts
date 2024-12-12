@@ -5,16 +5,17 @@ import {
   TransactionFactory,
 } from '@ethereumjs/tx';
 import { TransactionRequest } from '@ethersproject/abstract-provider';
-import { Signer } from '@ethersproject/abstract-signer';
+import {
+  Signer,
+  TypedDataDomain,
+  TypedDataField,
+} from '@ethersproject/abstract-signer';
 import { BigNumber } from '@ethersproject/bignumber';
 import { Bytes } from '@ethersproject/bytes';
 import { defineReadOnly } from '@ethersproject/properties';
 import { Provider } from '@ethersproject/providers';
-import {
-  personalSign,
-  signTypedData,
-  SignTypedDataVersion,
-} from '@metamask/eth-sig-util';
+import { Wallet } from '@ethersproject/wallet';
+import { personalSign } from '@metamask/eth-sig-util';
 import { bytesToHex } from 'ethereum-cryptography/utils';
 import { Address } from 'viem';
 
@@ -53,15 +54,20 @@ export class RainbowSigner extends Signer {
     return signature;
   }
 
-  async signTypedData(typedData: any): Promise<string> {
+  async signTypedData(
+    domain: TypedDataDomain,
+    types: Record<string, Array<TypedDataField>>,
+    value: Record<string, any>,
+  ): Promise<string> {
     const pkey = this.#getPrivateKeyBuffer();
-    const signature = signTypedData({
-      privateKey: pkey,
-      data: typedData,
-      version: SignTypedDataVersion.V4,
-    });
+    const wallet = new Wallet(pkey);
+    return wallet._signTypedData(domain, types, value);
 
-    return signature;
+    // const signature = signTypedData({
+    //   privateKey: pkey,
+    //   data: typedData,
+    //   version: SignTypedDataVersion.V4,
+    // });
   }
 
   async signTransaction(transaction: TransactionRequest): Promise<string> {

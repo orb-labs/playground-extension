@@ -3,6 +3,8 @@ import { Mnemonic } from '@ethersproject/hdnode';
 import { Wallet } from '@ethersproject/wallet';
 import { Address } from 'viem';
 
+import { RainbowSigner } from './RainbowSigner';
+
 export type PrivateKey = string;
 
 export type TWallet = Omit<Wallet, 'address' | 'privateKey'> & {
@@ -18,6 +20,7 @@ export interface IKeychain {
   addAccountAtIndex(index: number, address: Address): Promise<Address>;
   getAccounts(): Promise<Array<Address>>;
   getSigner(address: Address): Signer;
+  getRainbowSigner(): RainbowSigner;
   exportAccount(address: Address): Promise<PrivateKey>;
   exportKeychain(address: Address): Promise<Mnemonic['phrase']>;
   removeAccount(address: Address): Promise<void>;

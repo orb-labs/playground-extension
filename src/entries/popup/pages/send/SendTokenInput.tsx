@@ -14,8 +14,7 @@ import React, {
 import { i18n } from '~/core/languages';
 import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 import { NftSort } from '~/core/state/nfts';
-import { AddressOrEth, ParsedUserAsset } from '~/core/types/assets';
-import { ChainId } from '~/core/types/chains';
+import { ParsedUserAsset } from '~/core/types/assets';
 import { SimpleHashCollectionDetails, UniqueAsset } from '~/core/types/nfts';
 import { TESTNET_MODE_BAR_HEIGHT } from '~/core/utils/dimensions';
 import { handleSignificantDecimals } from '~/core/utils/numbers';
@@ -209,10 +208,7 @@ interface InputRefAPI {
 interface SendTokenInputProps {
   asset: ParsedUserAsset | null;
   assets: ParsedUserAsset[];
-  selectAssetAddressAndChain: (
-    address: AddressOrEth | '',
-    chainId: ChainId,
-  ) => void;
+  selectAssetAddressAndChain: (asset?: ParsedUserAsset | null) => void;
   nft?: UniqueAsset;
   collections?: SimpleHashCollectionDetails[];
   nftSortMethod: NftSort;
@@ -266,9 +262,9 @@ export const SendTokenInput = React.forwardRef<
   }, [dropdownVisible, inputRef]);
 
   const onSelectAsset = useCallback(
-    (address: AddressOrEth | '', chainId: ChainId) => {
+    (asset?: ParsedUserAsset | null) => {
       selectNft();
-      selectAssetAddressAndChain(address, chainId);
+      selectAssetAddressAndChain(asset);
       setDropdownVisible(false);
     },
     [selectAssetAddressAndChain, selectNft],
@@ -277,7 +273,7 @@ export const SendTokenInput = React.forwardRef<
   const onSelectNft = useCallback(
     (nft?: UniqueAsset) => {
       selectNft(nft);
-      selectAssetAddressAndChain('', ChainId.mainnet);
+      selectAssetAddressAndChain();
       setDropdownVisible(false);
     },
     [selectAssetAddressAndChain, selectNft],
@@ -315,7 +311,7 @@ export const SendTokenInput = React.forwardRef<
   }, [inputValue, collections]);
 
   const onCloseDropdown = useCallback(() => {
-    onSelectAsset('', ChainId.mainnet);
+    onSelectAsset();
     onSelectNft();
     setTimeout(() => {
       inputRef?.current?.focus();
@@ -324,8 +320,8 @@ export const SendTokenInput = React.forwardRef<
   }, [inputRef, onSelectAsset, onSelectNft, onDropdownAction]);
 
   const selectAsset = useCallback(
-    (address: AddressOrEth | '', chainId: ChainId) => {
-      onSelectAsset(address, chainId);
+    (asset?: ParsedUserAsset | null) => {
+      onSelectAsset(asset);
       setInputValue('');
     },
     [onSelectAsset],
@@ -434,7 +430,7 @@ export const SendTokenInput = React.forwardRef<
           <NFTIcon asset={nft} size={36} badge={true} />
         ) : (
           <AssetContextMenu asset={asset}>
-            <CoinIcon asset={asset ?? undefined} />
+            <CoinIcon asset={asset ?? undefined} isParent={true} />
           </AssetContextMenu>
         )
       }
@@ -488,7 +484,7 @@ export const SendTokenInput = React.forwardRef<
                   <Box
                     paddingHorizontal="8px"
                     key={`${asset?.uniqueId}-${i}`}
-                    onClick={() => selectAsset(asset.address, asset.chainId)}
+                    onClick={() => selectAsset(asset)}
                     testId={`token-input-asset-${asset?.uniqueId}`}
                   >
                     <RowHighlightWrapper>

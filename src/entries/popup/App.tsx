@@ -1,7 +1,10 @@
+import { Account, AccountType, VMType } from '@orb-labs/orby-core';
+import { OrbyProvider } from '@orb-labs/orby-react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { isEqual } from 'lodash';
 import * as React from 'react';
+import { useMemo } from 'react';
 import { WagmiProvider } from 'wagmi';
 
 import { analytics } from '~/analytics';
@@ -13,7 +16,11 @@ import config from '~/core/firebase/remoteConfig';
 import { initializeMessenger } from '~/core/messengers';
 import { persistOptions, queryClient } from '~/core/react-query';
 import { initializeSentry, setSentryUser } from '~/core/sentry';
-import { useCurrentLanguageStore, useDeviceIdStore } from '~/core/state';
+import {
+  useCurrentAddressStore,
+  useCurrentLanguageStore,
+  useDeviceIdStore,
+} from '~/core/state';
 import { useCurrentThemeStore } from '~/core/state/currentSettings/currentTheme';
 import { POPUP_DIMENSIONS } from '~/core/utils/dimensions';
 import { WagmiConfigUpdater, wagmiConfig } from '~/core/wagmi';
@@ -74,10 +81,6 @@ export function App() {
       lazyLoad: true,
     });
 
-    // if (process.env.IS_DEV !== 'true') {
-    //   document.addEventListener('contextmenu', (e) => e.preventDefault());
-    // }
-
     // prevent trackpad double tap zoom
     const app = document.getElementById('app');
     app?.addEventListener('wheel', (e) => {
@@ -95,6 +98,24 @@ export function App() {
   const { currentTheme } = useCurrentThemeStore();
   const isFullScreen = useIsFullScreen();
 
+  const { currentAddress } = useCurrentAddressStore();
+
+  const orbyConfig = useMemo(() => {
+    return {
+      instancePrivateAPIKey: process.env.ORBY_PRIVATE_API_KEY as string,
+      instancePublicAPIKey: process.env.ORBY_PUBLIC_API_KEY as string,
+      appName: 'Rainbow',
+      accounts: [
+        new Account(
+          currentAddress?.toLowerCase(),
+          AccountType.EOA,
+          VMType.EVM,
+          undefined,
+        ),
+      ],
+    };
+  }, [currentAddress]);
+
   return (
     <>
       <WagmiProvider config={wagmiConfig}>
@@ -104,22 +125,24 @@ export function App() {
         >
           <QueryClientProvider client={queryClient}>
             <ThemeProvider theme={currentTheme}>
-              <AuthProvider>
-                <Box
-                  id="main"
-                  background="surfacePrimaryElevated"
-                  style={{
-                    maxWidth: !isFullScreen
-                      ? `${POPUP_DIMENSIONS.width}px`
-                      : undefined,
-                  }}
-                >
-                  <Routes />
-                </Box>
-                <IdleTimer />
-                <OnboardingKeepAlive />
-                <WagmiConfigUpdater />
-              </AuthProvider>
+              <OrbyProvider config={orbyConfig}>
+                <AuthProvider>
+                  <Box
+                    id="main"
+                    background="surfacePrimaryElevated"
+                    style={{
+                      maxWidth: !isFullScreen
+                        ? `${POPUP_DIMENSIONS.width}px`
+                        : undefined,
+                    }}
+                  >
+                    <Routes />
+                  </Box>
+                  <IdleTimer />
+                  <OnboardingKeepAlive />
+                  <WagmiConfigUpdater />
+                </AuthProvider>
+              </OrbyProvider>
             </ThemeProvider>
           </QueryClientProvider>
         </PersistQueryClientProvider>
