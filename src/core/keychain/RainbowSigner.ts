@@ -62,12 +62,6 @@ export class RainbowSigner extends Signer {
     const pkey = this.#getPrivateKeyBuffer();
     const wallet = new Wallet(pkey);
     return wallet._signTypedData(domain, types, value);
-
-    // const signature = signTypedData({
-    //   privateKey: pkey,
-    //   data: typedData,
-    //   version: SignTypedDataVersion.V4,
-    // });
   }
 
   async signTransaction(transaction: TransactionRequest): Promise<string> {

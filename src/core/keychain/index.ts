@@ -31,7 +31,6 @@ import {
 import { addHexPrefix } from '../utils/hex';
 
 import { keychainManager } from './KeychainManager';
-import { RainbowSigner } from './RainbowSigner';
 import { SerializedKeypairKeychain } from './keychainTypes/keyPairKeychain';
 
 interface TypedDataTypes {
@@ -220,10 +219,6 @@ export const getAccounts = async (): Promise<Address[]> => {
 
 export const getSigner = async (address: Address): Promise<Signer> => {
   return keychainManager.getSigner(address);
-};
-
-export const getRainbowSigner = async (): Promise<RainbowSigner> => {
-  return keychainManager.getRainbowSigner();
 };
 
 export const exportKeychain = async (

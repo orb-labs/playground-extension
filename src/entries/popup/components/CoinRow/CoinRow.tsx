@@ -51,15 +51,6 @@ export function CoinRow({
                     isParent={isParent}
                   />
                 </Column>
-                {/* <Column width="content">
-                  {!isParent && (
-                    <Box paddingVertical="4px">
-                      <TextOverflow size="12pt" weight="medium">
-                        {asset?.chainName}
-                      </TextOverflow>
-                    </Box>
-                  )}
-                </Column> */}
                 <Column>
                   <Rows>
                     <Row>{topRow}</Row>

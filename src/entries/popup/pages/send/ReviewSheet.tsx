@@ -283,7 +283,6 @@ export const ReviewSheet = ({
   const [notSendingOnEthereumChecks, setNotSendingOnEthereumChecks] =
     useState(false);
   const prevShow = usePrevious(show);
-  // const [sending, setSending] = useState(false);
   const confirmSendButtonRef = useRef<HTMLButtonElement>(null);
   const { chains } = wagmiConfig;
   const assetChainId =
@@ -325,14 +324,11 @@ export const ReviewSheet = ({
 
   const handleSend = useCallback(async () => {
     if (sendEnabled && !operationSetStatus?.statusSummary) {
-      // setSending(true);
       try {
         await onSend();
         playSound('SendSound');
       } catch (e) {
-        //
-      } finally {
-        // setSending(false);
+        console.error(e);
       }
     }
   }, [onSend, sendEnabled, operationSetStatus?.statusSummary]);
@@ -445,7 +441,11 @@ export const ReviewSheet = ({
                                 <NFTIcon asset={nft} size={44} badge={true} />
                               </Box>
                             ) : (
-                              <CoinIcon asset={asset} size={44} />
+                              <CoinIcon
+                                asset={asset}
+                                size={44}
+                                isParent={true}
+                              />
                             )}
                           </Box>
                         </Inline>

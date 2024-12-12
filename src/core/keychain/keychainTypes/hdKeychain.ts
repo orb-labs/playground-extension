@@ -122,15 +122,6 @@ export class HdKeychain implements IKeychain {
     return new RainbowSigner(provider, wallet.privateKey, wallet.address);
   }
 
-  getRainbowSigner(): RainbowSigner {
-    const _privates = privates.get(this)!;
-
-    const provider = getProvider({ chainId: mainnet.id });
-    const wallet = _privates!.getWalletForAddress(address) as TWallet;
-    if (!wallet) throw new Error('Account not found');
-    return new RainbowSigner(provider, wallet.privateKey, wallet.address);
-  }
-
   async serialize(): Promise<SerializedHdKeychain> {
     const _privates = privates.get(this)!;
     if (!_privates.mnemonic) throw new Error('No mnemonic');

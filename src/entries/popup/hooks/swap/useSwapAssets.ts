@@ -32,7 +32,6 @@ export const sortBy = (by: SortMethod) => {
 };
 
 export const useSwapAssets = ({ bridge }: { bridge: boolean }) => {
-  // const { currentAddress } = useCurrentAddressStore();
   const { currentCurrency } = useCurrentCurrencyStore();
 
   const [assetToSell, setAssetToSellState] = useState<

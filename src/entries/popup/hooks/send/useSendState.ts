@@ -69,16 +69,6 @@ export const useSendState = ({
     return getDataForTokenTransfer(rawAmount, toAddress);
   }, [assetAmount, asset, fromAddress, nft, sendingNativeAsset, toAddress]);
 
-  // const txToAddress: Address = useMemo(() => {
-  //   const assetAddress = asset?.address;
-  //   const isSendingNativeAsset = assetAddress
-  //     ? isNativeAsset(assetAddress, chainId)
-  //     : true;
-  //   return (
-  //     !isSendingNativeAsset && assetAddress ? assetAddress : toAddress
-  //   ) as Address;
-  // }, [asset?.address, chainId, toAddress]);
-
   const txToAddress: Address = useMemo(() => {
     const isSendingNativeAsset = asset?.isNativeAsset;
     return (!isSendingNativeAsset ? asset?.address : toAddress) as Address;

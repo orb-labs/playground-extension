@@ -23,11 +23,6 @@ export const useSwapValidations = ({
   selectedGas?: GasFeeParams | GasFeeLegacyParams;
   operationSet?: OperationSet | null;
 }) => {
-  // const nativeAssetUniqueId = getNetworkNativeAssetUniqueId({
-  //   chainId: assetToSell?.chainId,
-  // });
-  // const { data: userNativeAsset } = useUserAsset(nativeAssetUniqueId || '');
-
   const enoughAssetBalance = useMemo(() => {
     if (assetToSellValue) {
       if (!assetToSell?.isNativeAsset) {
@@ -53,16 +48,6 @@ export const useSwapValidations = ({
 
   const enoughNativeAssetBalanceForGas = useMemo(() => {
     return operationSet?.status != CreateOperationsStatus.INSUFFICIENT_FUNDS;
-    // if (assetToSell?.isNativeAsset) {
-    //   return lessOrEqualThan(
-    //     add(toWei(assetToSellValue || '0'), selectedGas?.gasFee?.amount || '0'),
-    //     toWei(userNativeAsset?.balance?.amount || '0'),
-    //   );
-    // }
-    // return lessThan(
-    //   selectedGas?.gasFee?.amount || '0',
-    //   toWei(userNativeAsset?.balance?.amount || '0'),
-    // );
   }, [operationSet]);
 
   const buttonLabel = useMemo(() => {

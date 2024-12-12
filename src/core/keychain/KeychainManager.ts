@@ -14,7 +14,6 @@ import { LocalStorage, SessionStorage } from '../storage';
 import { KeychainType } from '../types/keychainTypes';
 import { isLowerCaseMatch } from '../utils/strings';
 
-import { RainbowSigner } from './RainbowSigner';
 import {
   HardwareWalletKeychain,
   SerializedHardwareWalletKeychain,
@@ -551,10 +550,6 @@ class KeychainManager {
     const keychain = await this.getKeychain(address);
     return keychain.getSigner(address);
   }
-
-  getRainbowSigner = async (): Promise<RainbowSigner> => {
-    return keychainManager.getRainbowSigner();
-  };
 }
 
 export const keychainManager = new KeychainManager();

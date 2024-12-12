@@ -97,35 +97,6 @@ function Fee({
     [],
   );
 
-  // const onSpeedChanged = useCallback(
-  //   (speed: GasSpeed) => {
-  //     if (speed === GasSpeed.CUSTOM) {
-  //       openCustomGasSheet();
-  //     } else {
-  //       setSelectedSpeed(speed);
-  //     }
-  //     analyticsEvents?.transactionSpeedSwitched &&
-  //       analytics.track(analyticsEvents?.transactionSpeedSwitched, { speed });
-  //   },
-  //   [
-  //     analyticsEvents?.transactionSpeedSwitched,
-  //     openCustomGasSheet,
-  //     setSelectedSpeed,
-  //   ],
-  // );
-
-  // const onSpeedOpenChange = useCallback(
-  //   (isOpen: boolean) => {
-  //     isOpen &&
-  //       analyticsEvents?.transactionSpeedClicked &&
-  //       analytics.track(analyticsEvents?.transactionSpeedClicked);
-  //   },
-  //   [analyticsEvents?.transactionSpeedClicked],
-  // );
-
-  // console.log('in tx fee', selectedGasToken);
-  // console.log('in tx fee', setSelectedGasToken);
-
   useKeyboardShortcut({
     handler: (e: KeyboardEvent) => {
       if (!disableShortcuts) {

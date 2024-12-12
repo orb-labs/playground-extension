@@ -31,10 +31,6 @@ export class ReadOnlyKeychain implements IKeychain {
     throw new Error('Method not implemented.');
   }
 
-  getRainbowSigner(): RainbowSigner {
-    throw new Error('Method not implemented.');
-  }
-
   addAccountAtIndex(index: number, address: Address): Promise<Address> {
     throw new Error('Method not implemented.');
   }

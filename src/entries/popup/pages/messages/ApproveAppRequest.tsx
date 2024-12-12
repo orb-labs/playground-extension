@@ -31,7 +31,6 @@ const ApproveAppRequestWrapper = ({
   rejectRequest: () => void;
 }) => {
   const { testnetMode } = useTestnetModeStore();
-
   return (
     <Box
       style={{
