@@ -72,6 +72,7 @@ export const SwitchGasTokenMenuSelector = ({
                       networks: [],
                       uniqueId: gasToken.standardizedTokenId,
                     }}
+                    isParent={true}
                     size={18}
                   />
                 )}
@@ -151,6 +152,7 @@ export const SwitchGasTokenMenu = React.forwardRef<
               networks: [],
               uniqueId: selectedGasToken?.standardizedTokenId || '',
             }}
+            isParent={true}
             size={18}
           />
         )}

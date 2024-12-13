@@ -1,7 +1,6 @@
 import { OnchainOperation, OperationSet } from '@orb-labs/orby-core';
 import { AnimatePresence, motion } from 'framer-motion';
-import { memo, useMemo, useState } from 'react';
-import { formatUnits } from 'viem';
+import { useState } from 'react';
 
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
 import { i18n } from '~/core/languages';
@@ -9,12 +8,12 @@ import { useDappMetadata } from '~/core/resources/metadata/dapp';
 import { useCurrentCurrencyStore } from '~/core/state';
 import { ProviderRequestPayload } from '~/core/transports/providerRequestTransport';
 import { ChainId } from '~/core/types/chains';
-import { getChain } from '~/core/utils/chains';
 import { copy } from '~/core/utils/copy';
 import { getSigningRequestDisplayDetails } from '~/core/utils/signMessages';
 import { truncateString } from '~/core/utils/strings';
 import { Box, Inline, Separator, Stack, Symbol, Text } from '~/design-system';
 import { DappIcon } from '~/entries/popup/components/DappIcon/DappIcon';
+import { TransactionRoute } from '~/entries/popup/components/TransactionRoute';
 import { useAppSession } from '~/entries/popup/hooks/useAppSession';
 
 import { DappHostName, MaliciousRequestWarning } from '../DappScanStatus';
@@ -93,45 +92,8 @@ function Overview({
   );
 }
 
-const TransactionRoute = memo(function TransactionRoute({
-  operationSet,
-}: {
-  operations?: OnchainOperation[];
-  operationSet?: OperationSet;
-}) {
-  const fungibleTokens = useMemo(() => {
-    return operationSet?.inputState?.getFungibleTokens();
-  }, [operationSet]);
-
-  return (
-    <Box gap="16px" display="flex" flexDirection="column" paddingTop="14px">
-      <Text size="12pt" weight="semibold" color="labelTertiary">
-        Using Funds
-      </Text>
-      {fungibleTokens?.map((input, i) => (
-        <Inline key={i} alignVertical="center">
-          <Symbol
-            size={14}
-            symbol="arrow.up.circle.fill"
-            weight="bold"
-            color="red"
-          />
-          <Box paddingLeft="10px">
-            <Text key={i} size="14pt" weight="bold" color="label">
-              Use {formatUnits(input.toRawAmount(), input.token.decimals)}{' '}
-              {input.token.symbol} from{' '}
-              {getChain({ chainId: Number(input.token.chainId) }).name}
-            </Text>
-          </Box>
-        </Inline>
-      ))}
-    </Box>
-  );
-});
-
 export const SignMessageInfo = ({
   request,
-  operations,
   operationSet,
 }: SignMessageProps) => {
   const dappUrl = request?.meta?.sender?.url || '';
@@ -164,6 +126,8 @@ export const SignMessageInfo = ({
   });
 
   const tabLabel = (tab: string) => i18n.t(tab, { scope: 'simulation.tabs' });
+
+  console.log('SignMessageInfo', operationSet);
 
   return (
     <Box
@@ -236,12 +200,7 @@ export const SignMessageInfo = ({
           />
         </TabContent>
         <TabContent value="Route">
-          {operations && (
-            <TransactionRoute
-              operations={operations}
-              operationSet={operationSet}
-            />
-          )}
+          {operationSet && <TransactionRoute operationSet={operationSet} />}
         </TabContent>
       </Tabs>
 

@@ -1,4 +1,4 @@
-# Rainbow Extension for Firefox
+# OrbyPlayground Extension for Firefox
 
 ## Prerequisites
 
@@ -22,7 +22,6 @@ nvm use 20.16.0
 ```bash
 yarn setup
 ```
-
 
 ### 3. Build the extension
 

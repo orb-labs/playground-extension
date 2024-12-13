@@ -5,22 +5,27 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { analytics } from '~/analytics';
 import { event } from '~/analytics/event';
+import config from '~/core/firebase/remoteConfig';
 import { i18n } from '~/core/languages';
 import { useDappMetadata } from '~/core/resources/metadata/dapp';
+import { useFlashbotsEnabledStore } from '~/core/state/currentSettings';
 import { useFeatureFlagsStore } from '~/core/state/currentSettings/featureFlags';
 import { ProviderRequestPayload } from '~/core/transports/providerRequestTransport';
+import { ChainId } from '~/core/types/chains';
 import { RPCMethod } from '~/core/types/rpcMethods';
 import { POPUP_DIMENSIONS } from '~/core/utils/dimensions';
 import { signOperation } from '~/core/utils/orb';
 import { getSigningRequestDisplayDetails } from '~/core/utils/signMessages';
 import { Bleed, Box, Stack } from '~/design-system';
 import { triggerAlert } from '~/design-system/components/Alert/Alert';
+import { TransactionFee } from '~/entries/popup/components/TransactionFee/TransactionFee';
 import { showLedgerDisconnectedAlertIfNeeded } from '~/entries/popup/handlers/ledger';
 import { useAppSession } from '~/entries/popup/hooks/useAppSession';
 import { useWallets } from '~/entries/popup/hooks/useWallets';
 import { RainbowError, logger } from '~/logger';
 
 import * as wallet from '../../../handlers/wallet';
+import { GasTokenInput } from '../../send';
 import { AccountSigningWith } from '../AccountSigningWith';
 
 import { SignMessageActions } from './SignMessageActions';
@@ -52,6 +57,12 @@ export function SignMessage({
 }: ApproveRequestProps) {
   const [loading, setLoading] = useState(false);
   const [waitingForDevice, setWaitingForDevice] = useState(false);
+  const [selectedGasToken, setSelectedGasToken] = useState<GasTokenInput>({
+    name: 'no gas abstraction',
+    standardizedTokenId: undefined,
+    isDefault: true,
+  });
+
   const { data: dappMetadata } = useDappMetadata({
     url: request?.meta?.sender?.url,
   });
@@ -67,13 +78,16 @@ export function SignMessage({
 
   const { accountCluster, baseMainnetClient } = useOrby();
 
-  const { operations, operationSet, virtualNode } =
+  const { operations, operationSet, virtualNode, isLoading, aggregateFee } =
     useGetOperationsToSignTypedData(
       request?.method == 'personal_sign'
         ? ''
         : JSON.stringify(requestPayload.msgData),
       activeSession?.address?.toLowerCase(),
       activeSession?.chainId ? BigInt(activeSession.chainId) : undefined,
+      selectedGasToken.standardizedTokenId
+        ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
+        : undefined,
     );
 
   const operationStatusesUpdated = useCallback(
@@ -228,6 +242,28 @@ export function SignMessage({
     }
   }, [featureFlags.full_watching_wallets, isWatchingWallet, rejectRequest]);
 
+  const chainId = useMemo(() => {
+    return activeSession?.chainId || ChainId.mainnet;
+  }, [activeSession?.chainId]);
+
+  const selectGasToken = useCallback(
+    (gasToken?: GasTokenInput) => {
+      if (gasToken) {
+        setSelectedGasToken(gasToken);
+      }
+    },
+    [setSelectedGasToken],
+  );
+
+  const { flashbotsEnabled } = useFlashbotsEnabledStore();
+  const flashbotsEnabledGlobally = useMemo(() => {
+    return (
+      config.flashbots_enabled &&
+      flashbotsEnabled &&
+      activeSession?.chainId === ChainId.mainnet
+    );
+  }, [activeSession?.chainId, flashbotsEnabled]);
+
   return (
     <Box
       display="flex"
@@ -243,11 +279,27 @@ export function SignMessage({
         <Bleed vertical="4px">
           <AccountSigningWith session={activeSession} noFee />
         </Bleed>
+        <TransactionFee
+          analyticsEvents={{
+            customGasClicked: event.dappPromptSendTransactionCustomGasClicked,
+            transactionSpeedSwitched:
+              event.dappPromptSendTransactionSpeedSwitched,
+            transactionSpeedClicked:
+              event.dappPromptSendTransactionSpeedClicked,
+          }}
+          chainId={chainId}
+          address={activeSession?.address}
+          transactionRequest={{}}
+          flashbotsEnabled={flashbotsEnabledGlobally}
+          selectedGasToken={selectedGasToken}
+          setSelectedGasToken={selectGasToken}
+          aggregateFee={aggregateFee}
+        />
         <SignMessageActions
           waitingForDevice={waitingForDevice}
           onAcceptRequest={onAcceptRequest}
           onRejectRequest={onRejectRequest}
-          loading={loading}
+          loading={loading || isLoading}
           dappStatus={dappMetadata?.status}
         />
       </Stack>

@@ -3052,28 +3052,28 @@
   resolved "https://registry.yarnpkg.com/@open-draft/until/-/until-1.0.3.tgz#db9cc719191a62e7d9200f6e7bab21c5b848adca"
   integrity sha512-Aq58f5HiWdyDlFffbbSjAlv596h/cOnt2DO1w3DOC7OJ5EHs0hd/nycJfiu9RJbT6Yk6F1knnRRXNSpxoIVZ9Q==
 
-"@orb-labs/orby-core-mini@0.0.1":
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/@orb-labs/orby-core-mini/-/orby-core-mini-0.0.1.tgz#e023ea1e88c62ff96e17fc7fc3602942fced07b3"
-  integrity sha512-luwYyPAsvf/B9g3ZoaDsNCrxj4+l/NovC2e4sMDz1Lt0d6hn4oBF1rf8SnjS5AZcqntpInaSiG5rNMjtfFIGrQ==
+"@orb-labs/orby-core-mini@0.0.3":
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/@orb-labs/orby-core-mini/-/orby-core-mini-0.0.3.tgz#fe8a7e37f10e5f634364ca752cc0adbe079e34bb"
+  integrity sha512-WBvpk+7WMlASUXTbKdwLK6d1coB0wLn1tkHRkgCac/0OulVxQAuD97wTXfcdaA2u+Mrs8GXSaJEfSLxq/t1Tjw==
   dependencies:
     node-fetch "^3.3.2"
 
-"@orb-labs/orby-core@0.0.10":
-  version "0.0.10"
-  resolved "https://registry.yarnpkg.com/@orb-labs/orby-core/-/orby-core-0.0.10.tgz#2bb6f3ce5d55ed7c525993dd0a61723ddd27d15c"
-  integrity sha512-GNoA4ob1k/o0tFAYpCTDzjxC1YyrEnE1HI77KRLTA0DtuLxhFmgETLhxCp4punfqRZJO0xbmGhdZ0R53FXRJcQ==
+"@orb-labs/orby-core@0.0.11":
+  version "0.0.11"
+  resolved "https://registry.yarnpkg.com/@orb-labs/orby-core/-/orby-core-0.0.11.tgz#b61589a734f0a22d5541768b6878929f886d57a3"
+  integrity sha512-ZdUq7x88sghiwwUMg4OCJDT4TOuqKsqemoqTvGK6vT0NzYPBpda8KDPON2DMbwjixhUXXLuXbEh1IdPNvORv7A==
   dependencies:
     "@uniswap/sdk-core" "^5.9.0"
     jsbi "^3.1.4"
 
-"@orb-labs/orby-react@0.0.22":
-  version "0.0.22"
-  resolved "https://registry.yarnpkg.com/@orb-labs/orby-react/-/orby-react-0.0.22.tgz#a83a307178529e362a5a7015cd966458e5be80aa"
-  integrity sha512-1AMzRJGDh7NyKQQYzWBuqdaRBcPPpGe6r9eHD2M/HZcxE1Pp5bDU7ZkO+QiC4wYRv7nMJhnXEyBCXLSrDjHrPA==
+"@orb-labs/orby-react@0.0.27":
+  version "0.0.27"
+  resolved "https://registry.yarnpkg.com/@orb-labs/orby-react/-/orby-react-0.0.27.tgz#d9e18813136ccd195c4c560bfff0a2d8fc0b0af6"
+  integrity sha512-IOwLfI3VXYjh+DH/rurZ3xpZVTftpA8bNeVLaltpDRgivdOb3G80ONAIlMEl9OuAORls0wyGVV0pKTKCKBX0FQ==
   dependencies:
-    "@orb-labs/orby-core-mini" "0.0.1"
-    "@orb-labs/orby-viem-extension" "0.0.9"
+    "@orb-labs/orby-core-mini" "0.0.3"
+    "@orb-labs/orby-viem-extension" "0.0.10"
     "@uidotdev/usehooks" "^2.4.1"
     "@web3modal/wagmi" "^5.0.10"
     autoprefixer "^10.4.16"
@@ -3086,12 +3086,12 @@
     tailwindcss "^3.4.1"
     viem "^2.9.25"
 
-"@orb-labs/orby-viem-extension@0.0.9":
-  version "0.0.9"
-  resolved "https://registry.yarnpkg.com/@orb-labs/orby-viem-extension/-/orby-viem-extension-0.0.9.tgz#bdff671c91c354e98c6725b1d2928cb8a9cfb18d"
-  integrity sha512-ejHUsZrhZLCoG0HMYZKhq/LO+OrWvaApQ673tmJWpaeVEebCE2vmbzgJEdmjMFpjU/YvPaoaCyNSZgjXUQbNNw==
+"@orb-labs/orby-viem-extension@0.0.10":
+  version "0.0.10"
+  resolved "https://registry.yarnpkg.com/@orb-labs/orby-viem-extension/-/orby-viem-extension-0.0.10.tgz#e3c3fa76ddb95488c95bc5526cc131dc13b98502"
+  integrity sha512-tDzrgmL+2NruwZGpGw5DFnsBaC4gc6vyPVmee3ud66EHPcBMCnrwZUpcFMlGEPu4iOcG9rfkaebO1hzlUj9jHQ==
   dependencies:
-    "@orb-labs/orby-core" "0.0.10"
+    "@orb-labs/orby-core" "0.0.11"
 
 "@parcel/watcher-android-arm64@2.4.1":
   version "2.4.1"

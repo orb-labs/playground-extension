@@ -119,19 +119,21 @@ export function SendTransaction({
           activeSession.chainId,
         );
 
-        approveRequest(hash);
-
-        setWaitingForDevice(false);
         analytics.track(event.dappPromptSendTransactionApproved, {
           chainId: activeChainId,
           dappURL: dappMetadata?.appHost || '',
           dappName: dappMetadata?.appName,
         });
+
+        approveRequest(hash);
+        setWaitingForDevice(false);
+        setLoading(false);
       }
     },
     [
       activeSession,
       approveRequest,
+      setWaitingForDevice,
       connectedToHardhat,
       connectedToHardhatOp,
       dappMetadata?.appHost,
@@ -155,10 +157,12 @@ export function SendTransaction({
       if (!accountCluster) {
         approveRequest(null);
         setWaitingForDevice(false);
+        setLoading(false);
         return;
       } else if (!accountCluster || !virtualNode || !operationSet) {
         approveRequest(null);
         setWaitingForDevice(false);
+        setLoading(false);
         return;
       }
 
@@ -172,6 +176,7 @@ export function SendTransaction({
       if (!success) {
         approveRequest(null);
         setWaitingForDevice(false);
+        setLoading(false);
         return;
       }
 
@@ -196,7 +201,6 @@ export function SendTransaction({
         text: i18n.t('errors.sending_transaction'),
         description: extractedError,
       });
-    } finally {
       setWaitingForDevice(false);
       setLoading(false);
     }
@@ -277,6 +281,8 @@ export function SendTransaction({
     return activeSession?.chainId || ChainId.mainnet;
   }, [activeSession?.chainId]);
 
+  console.log('SendTransaction', operationSet);
+
   return (
     <Box
       display="flex"
@@ -316,6 +322,7 @@ export function SendTransaction({
           onRejectRequest={onRejectRequest}
           loading={loading || isLoading}
           dappStatus={dappMetadata?.status}
+          operationSet={operationSet}
         />
       </Stack>
     </Box>

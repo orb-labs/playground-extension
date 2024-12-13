@@ -1,3 +1,6 @@
+import { CreateOperationsStatus, OperationSet } from '@orb-labs/orby-core';
+import { useMemo } from 'react';
+
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
 import { i18n } from '~/core/languages';
 import { shortcuts } from '~/core/references/shortcuts';
@@ -16,6 +19,7 @@ export const SendTransactionActions = ({
   waitingForDevice,
   loading = false,
   dappStatus,
+  operationSet,
 }: {
   session: ActiveSession;
   onAcceptRequest: () => void;
@@ -23,13 +27,16 @@ export const SendTransactionActions = ({
   waitingForDevice: boolean;
   loading: boolean;
   dappStatus?: DAppStatus;
+  operationSet?: OperationSet;
 }) => {
   const { buttonLabel } = useApproveAppRequestValidations({
     session,
     dappStatus,
   });
 
-  const enoughNativeAssetForGas = true;
+  const disabled = useMemo(() => {
+    return operationSet?.status != CreateOperationsStatus.SUCCESS;
+  }, [operationSet]);
 
   const { trackShortcut } = useKeyboardAnalytics();
   useKeyboardShortcut({
@@ -52,15 +59,14 @@ export const SendTransactionActions = ({
         label={i18n.t('common_actions.cancel')}
         dappStatus={dappStatus}
       />
-      {enoughNativeAssetForGas && (
-        <AcceptRequestButton
-          onClick={onAcceptRequest}
-          label={buttonLabel}
-          waitingForDevice={waitingForDevice}
-          loading={loading}
-          dappStatus={dappStatus}
-        />
-      )}
+      <AcceptRequestButton
+        onClick={onAcceptRequest}
+        label={buttonLabel}
+        waitingForDevice={waitingForDevice}
+        loading={loading}
+        dappStatus={dappStatus}
+        disabled={disabled}
+      />
     </Inline>
   );
 };

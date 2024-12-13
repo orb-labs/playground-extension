@@ -1,8 +1,8 @@
 import { TransactionRequest } from '@ethersproject/abstract-provider';
-import { OperationSet } from '@orb-labs/orby-core';
+import { CreateOperationsStatus, OperationSet } from '@orb-labs/orby-core';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ReactNode, memo, useMemo, useState } from 'react';
-import { Address, formatUnits } from 'viem';
+import { Address } from 'viem';
 
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
 import { i18n } from '~/core/languages';
@@ -35,6 +35,7 @@ import { ChainBadge } from '~/entries/popup/components/ChainBadge/ChainBadge';
 import { DappIcon } from '~/entries/popup/components/DappIcon/DappIcon';
 import { Tag } from '~/entries/popup/components/Tag';
 import { triggerToast } from '~/entries/popup/components/Toast/Toast';
+import { TransactionRoute } from '~/entries/popup/components/TransactionRoute';
 import { useAppSession } from '~/entries/popup/hooks/useAppSession';
 import { useRainbowNavigate } from '~/entries/popup/hooks/useRainbowNavigate';
 import { useUserNativeAsset } from '~/entries/popup/hooks/useUserNativeAsset';
@@ -166,41 +167,6 @@ const Overview = memo(function Overview({
         />
       )}
     </Stack>
-  );
-});
-
-const TransactionRoute = memo(function TransactionRoute({
-  operationSet,
-}: {
-  operationSet?: OperationSet;
-}) {
-  const fungibleTokens = useMemo(() => {
-    return operationSet?.inputState?.getFungibleTokens();
-  }, [operationSet]);
-
-  return (
-    <Box gap="16px" display="flex" flexDirection="column" paddingTop="14px">
-      <Text size="12pt" weight="semibold" color="labelTertiary">
-        Using Funds
-      </Text>
-      {fungibleTokens?.map((input, i) => (
-        <Inline key={i} alignVertical="center">
-          <Symbol
-            size={14}
-            symbol="arrow.up.circle.fill"
-            weight="bold"
-            color="red"
-          />
-          <Box paddingLeft="10px">
-            <Text key={i} size="14pt" weight="bold" color="label">
-              Use {formatUnits(input.toRawAmount(), input.token.decimals)}{' '}
-              {input.token.symbol} from{' '}
-              {getChain({ chainId: Number(input.token.chainId) }).name}
-            </Text>
-          </Box>
-        </Inline>
-      ))}
-    </Box>
   );
 });
 
@@ -366,7 +332,7 @@ function TransactionInfo({
       <Tabs
         tabs={
           // we need a simulation to show the details tab
-          !simulation && status === 'error'
+          operationSet?.status != CreateOperationsStatus.SUCCESS
             ? [tabLabel('overview'), tabLabel('data')]
             : [
                 tabLabel('overview'),
