@@ -32,6 +32,7 @@ export const SendTransactionActions = ({
   const { buttonLabel } = useApproveAppRequestValidations({
     session,
     dappStatus,
+    operationSet,
   });
 
   const disabled = useMemo(() => {

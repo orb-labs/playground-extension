@@ -23,6 +23,12 @@ export const useApproveAppRequestValidations = ({
       return i18n.t('send.button_label.insufficient_asset');
     }
 
+    if (
+      operationSet?.status == CreateOperationsStatus.INSUFFICIENT_FUNDS_FOR_GAS
+    ) {
+      return i18n.t('send.button_label.insufficient_gas_funds');
+    }
+
     if (operationSet?.status == CreateOperationsStatus.NO_EXECUTION_PATH) {
       return i18n.t('send.button_label.no_execution_path');
     }

@@ -115,8 +115,6 @@ export function Tokens({ scrollY }: { scrollY: MotionValue<number> }) {
     setCombinedAssets(convertStandardizedBalanceToParsedUserAssets(portfolio));
   }, [portfolio]);
 
-  console.log('isLoading', isLoading);
-
   const onCombineLists = useCallback(
     (standardizedTokenId?: string) => {
       if (!standardizedTokenId) {

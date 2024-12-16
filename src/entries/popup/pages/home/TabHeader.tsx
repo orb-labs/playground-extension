@@ -53,7 +53,6 @@ export function TabHeader({
           cursor="text"
         >
           {userAssetsBalanceDisplay || ''}
-          {/* {balance || ''} */}
         </Text>
       ),
     [activeTab, currentCurrency, hideAssetBalances, userAssetsBalanceDisplay],

@@ -143,6 +143,12 @@ export const useSendValidations = ({
       return i18n.t('send.button_label.enter_address');
     }
 
+    if (
+      operationSet?.status == CreateOperationsStatus.INSUFFICIENT_FUNDS_FOR_GAS
+    ) {
+      return i18n.t('send.button_label.insufficient_gas_funds');
+    }
+
     if (operationSet?.status == CreateOperationsStatus.INSUFFICIENT_FUNDS) {
       return i18n.t('send.button_label.insufficient_asset', {
         symbol: asset?.symbol,

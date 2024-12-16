@@ -9,7 +9,6 @@ import { KeychainType } from '~/core/types/keychainTypes';
 import { logger } from '~/logger';
 
 import { IKeychain, PrivateKey } from '../IKeychain';
-import { RainbowSigner } from '../RainbowSigner';
 
 export interface SerializedReadOnlyKeychain {
   type: KeychainType.ReadOnlyKeychain;

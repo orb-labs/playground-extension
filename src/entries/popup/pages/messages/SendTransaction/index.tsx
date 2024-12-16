@@ -112,7 +112,6 @@ export function SendTransaction({
           statusSummary,
         )
       ) {
-        const hash = statuses[statuses.length - 1].hash;
         const activeChainId = chainIdToUse(
           connectedToHardhat,
           connectedToHardhatOp,
@@ -125,7 +124,7 @@ export function SendTransaction({
           dappName: dappMetadata?.appName,
         });
 
-        approveRequest(hash);
+        approveRequest(finalTransactionStatus?.hash);
         setWaitingForDevice(false);
         setLoading(false);
       }
@@ -280,8 +279,6 @@ export function SendTransaction({
   const chainId = useMemo(() => {
     return activeSession?.chainId || ChainId.mainnet;
   }, [activeSession?.chainId]);
-
-  console.log('SendTransaction', operationSet);
 
   return (
     <Box
