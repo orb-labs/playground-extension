@@ -2,7 +2,7 @@
 
 ## OrbyPlayground Extension
 
-Built for speed. Built for power. Built for you.
+Unify Accounts. Unify Ethereum.
 
 OrbyPlayground is a playground extension for showcasing the power of Orby. It is a fork of the Rainbow Extension with chain abstraction and gas abstraction features.
 
@@ -12,7 +12,7 @@ OrbyPlayground is a playground extension for showcasing the power of Orby. It is
 - Gas abstraction for EOAs
 - Gas sponsorship for EOAs
 - Unified balances for assets across all supported chains.
-- Auto-discovers tokens and assets across all supported chains: Mainnet, Base, Arbitrum, Optimism, and Polyon
+- Auto-discovers tokens and assets across all supported chains: Mainnet, Base, Arbitrum, Optimism, and Polygon
 - Built-in Send and Swap using your unified balance to power all of your DeFi needs
 
 ...and a lot more.

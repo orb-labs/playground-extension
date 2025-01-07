@@ -11,7 +11,7 @@
     },
     "default_popup": "popup.html"
   },
-  "author": "https://rainbow.me",
+  "author": "https://www.orblabs.xyz/",
   "background": {
     "service_worker": "background.js"
   },
@@ -31,7 +31,7 @@
     "extension_pages": "frame-ancestors 'none'; script-src 'self'; object-src 'self'; connect-src 'self'"
   },
   "default_locale": "en_US",
-  "description": "DEV VERSION",
+  "description": "OrbyPlayground is a playground extension for showcasing the power of Orby.",
   "host_permissions": ["http://*/*", "https://*/*", "wss://*/*"],
   "icons": {
     "16": "images/icon-16.png",
@@ -44,7 +44,7 @@
   },
   "manifest_version": 3,
   "minimum_chrome_version": "88",
-  "name": "Rainbow DEVELOPMENT BUILD",
+  "name": "OrbyPlayground",
   "permissions": [
     "activeTab",
     "clipboardWrite",
@@ -54,8 +54,8 @@
     "unlimitedStorage",
     "notifications"
   ],
-  "short_name": "Rainbow",
-  "version": "1.5.48",
+  "short_name": "OrbyPlayground",
+  "version": "0.0.1",
   "web_accessible_resources": [
     {
       "matches": ["<all_urls>"],
@@ -76,7 +76,7 @@
         "chromeos": "Alt+Shift+R",
         "linux": "Alt+Shift+R"
       },
-      "description": "Open the Rainbow Wallet extension"
+      "description": "Open the OrbyPlayground Wallet extension"
     }
   }
 }
