@@ -214,8 +214,10 @@ export const useSwapButton = ({
             }
 
             const { operationResponses } = await virtualNode.sendOperationSet(
-              accountCluster.accountClusterId,
+              accountCluster,
               operationSet,
+              signOperation,
+              undefined,
               signOperation,
             );
 
@@ -251,7 +253,11 @@ export const useSwapButton = ({
                 icon: (
                   <Box>
                     <Box>
-                      <CoinIcon asset={assetToSell} size={40} />
+                      <CoinIcon
+                        asset={assetToSell}
+                        size={40}
+                        isParent={false}
+                      />
                     </Box>
                     <Box width="full">
                       <Inline alignHorizontal="right">
@@ -350,7 +356,9 @@ export const useSwapButton = ({
         buttonAction: () =>
           showExplainerSheet({
             show: true,
-            header: { icon: <CoinIcon asset={assetToSell} size={32} /> },
+            header: {
+              icon: <CoinIcon asset={assetToSell} size={32} isParent={false} />,
+            },
 
             title: t('swap.explainers.fee_on_transfer_token.title'),
             description: [
@@ -402,14 +410,14 @@ export const useSwapButton = ({
               icon: (
                 <Inline space="8px" alignVertical="center">
                   <Box>
-                    <CoinIcon asset={assetToSell} size={40} />
+                    <CoinIcon asset={assetToSell} size={40} isParent={false} />
                   </Box>
                   <ChevronRightDouble
                     colorLeft="separatorSecondary"
                     colorRight="separator"
                   />
                   <Box>
-                    <CoinIcon asset={assetToBuy} size={40} />
+                    <CoinIcon asset={assetToBuy} size={40} isParent={false} />
                   </Box>
                 </Inline>
               ),

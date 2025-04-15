@@ -1,5 +1,8 @@
 import { OperationStatus, OperationStatusType } from '@orb-labs/orby-core';
-import { useGetOperationsToSignTypedData, useOrby } from '@orb-labs/orby-react';
+import {
+  useGetOperationsToSignTransactionOrSignTypedData,
+  useOrby,
+} from '@orb-labs/orby-react';
 import _ from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -14,7 +17,7 @@ import { ProviderRequestPayload } from '~/core/transports/providerRequestTranspo
 import { ChainId } from '~/core/types/chains';
 import { RPCMethod } from '~/core/types/rpcMethods';
 import { POPUP_DIMENSIONS } from '~/core/utils/dimensions';
-import { signOperation } from '~/core/utils/orb';
+import { signOperation, signSVMTransaction } from '~/core/utils/orb';
 import { getSigningRequestDisplayDetails } from '~/core/utils/signMessages';
 import { Bleed, Box, Stack } from '~/design-system';
 import { triggerAlert } from '~/design-system/components/Alert/Alert';
@@ -76,18 +79,22 @@ export function SignMessage({
     return getSigningRequestDisplayDetails(request);
   }, [request]);
 
-  const { accountCluster, baseMainnetClient } = useOrby();
+  const { accountCluster, baseMainnetClient, getVirtualNodeRpcUrl } = useOrby();
+
+  const gasToken = useMemo(() => {
+    return selectedGasToken?.standardizedTokenId
+      ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
+      : undefined;
+  }, [selectedGasToken]);
 
   const { operations, operationSet, virtualNode, isLoading, aggregateFee } =
-    useGetOperationsToSignTypedData(
-      request?.method == 'personal_sign'
-        ? ''
-        : JSON.stringify(requestPayload.msgData),
+    useGetOperationsToSignTransactionOrSignTypedData(
+      requestPayload.orbyCallData ?? '',
+      undefined,
+      undefined,
       activeSession?.address?.toLowerCase(),
       activeSession?.chainId ? BigInt(activeSession.chainId) : undefined,
-      selectedGasToken.standardizedTokenId
-        ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
-        : undefined,
+      gasToken,
     );
 
   const operationStatusesUpdated = useCallback(
@@ -98,30 +105,49 @@ export function SignMessage({
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       _statuses?: OperationStatus[],
     ) => {
-      if (
-        requestPayload.address &&
+      if (statusSummary == OperationStatusType.WAITING_PRECONDITION) {
+        return;
+      } else if (
+        activeSession &&
+        [OperationStatusType.FAILED, OperationStatusType.NOT_FOUND].includes(
+          statusSummary,
+        )
+      ) {
+        approveRequest(undefined);
+      } else if (
+        activeSession &&
         [OperationStatusType.SUCCESSFUL, OperationStatusType.PENDING].includes(
           statusSummary,
         )
       ) {
-        const result = await wallet.signTypedData(
-          requestPayload.msgData,
-          requestPayload.address,
-        );
+        let result = null;
+        // this is for signing Solana Transaction
+        if (request.method == 'signTransaction') {
+          const txRpcUrl = getVirtualNodeRpcUrl(
+            activeSession?.address,
+            BigInt(activeSession?.chainId),
+          );
 
-        analytics.track(event.dappPromptSignTypedDataApproved, {
-          dappURL: dappMetadata?.appHost || '',
-          dappName: dappMetadata?.appName,
-        });
+          result = await signSVMTransaction(
+            txRpcUrl.virtualNodeRpcUrl,
+            requestPayload.msgData,
+            activeSession?.address,
+          );
+        } else {
+          result = await wallet.signTypedData(
+            requestPayload.msgData,
+            activeSession?.address,
+          );
+        }
 
         approveRequest(result);
       }
     },
     [
+      activeSession,
       approveRequest,
-      dappMetadata?.appHost,
-      dappMetadata?.appName,
-      requestPayload.address,
+      getVirtualNodeRpcUrl,
+      request.method,
       requestPayload.msgData,
     ],
   );
@@ -161,8 +187,10 @@ export function SignMessage({
 
         const { success, operationResponses } =
           await virtualNode.sendOperationSet(
-            accountCluster.accountClusterId,
+            accountCluster,
             operationSet,
+            signOperation,
+            undefined,
             signOperation,
           );
 
@@ -173,7 +201,6 @@ export function SignMessage({
         }
 
         if (operationResponses && operationResponses.length === 0) {
-          console.error('No operation responses');
           operationStatusesUpdated(OperationStatusType.SUCCESSFUL);
         } else {
           const ids = operationResponses

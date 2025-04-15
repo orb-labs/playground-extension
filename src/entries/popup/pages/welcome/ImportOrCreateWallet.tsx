@@ -48,6 +48,7 @@ export function ImportOrCreateWallet() {
   }, []);
 
   const setCurrentAddress = useCurrentAddressStore.use.setCurrentAddress();
+  const setCurrentAddresses = useCurrentAddressStore.use.setCurrentAddresses();
 
   const handleImportWalletClick = React.useCallback(async () => {
     const permissionsOk = await requestPermissionsIfNeeded();
@@ -62,6 +63,7 @@ export function ImportOrCreateWallet() {
     try {
       const newWalletAddress = await wallet.create();
       setCurrentAddress(newWalletAddress);
+      setCurrentAddresses([newWalletAddress]);
       const seedPhrase = await wallet.exportWallet(newWalletAddress, '');
       setImportWalletSecrets([seedPhrase]);
       navigate(ROUTES.SEED_BACKUP_PROMPT);
@@ -71,7 +73,13 @@ export function ImportOrCreateWallet() {
       logger.error(new RainbowError(e?.name), { message: e?.message });
       setLoading(false);
     }
-  }, [loading, navigate, requestPermissionsIfNeeded, setCurrentAddress]);
+  }, [
+    loading,
+    navigate,
+    requestPermissionsIfNeeded,
+    setCurrentAddress,
+    setCurrentAddresses,
+  ]);
 
   return (
     <Box style={{ marginTop: '234px' }}>

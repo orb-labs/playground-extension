@@ -61,7 +61,7 @@ describe('New wallet flow', () => {
 
     await findElementByTestIdAndClick({ id: 'set-password-button', driver });
     await delayTime('long');
-    await findElementByText(driver, 'Rainbow is ready to use');
+    await findElementByText(driver, 'OrbyPlayground is ready to use');
   });
 
   it('should display account name', async () => {

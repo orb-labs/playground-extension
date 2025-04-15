@@ -99,7 +99,7 @@ it('should be able import a wallet via pk', async () => {
   });
   await findElementByTestIdAndClick({ id: 'set-password-button', driver });
   await delayTime('long');
-  await findElementByText(driver, 'Rainbow is ready to use');
+  await findElementByText(driver, 'OrbyPlayground is ready to use');
 });
 
 it('should be able to go to setings', async () => {

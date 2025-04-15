@@ -3,6 +3,7 @@ import { Signer } from '@ethersproject/abstract-signer';
 import { isAddress } from '@ethersproject/address';
 import { Mnemonic } from '@ethersproject/hdnode';
 import { Wallet } from '@ethersproject/wallet';
+import { Keypair } from '@solana/web3.js';
 import { Address } from 'viem';
 
 import { KeychainType } from '~/core/types/keychainTypes';
@@ -13,10 +14,14 @@ import { IKeychain, PrivateKey } from '../IKeychain';
 export interface SerializedReadOnlyKeychain {
   type: KeychainType.ReadOnlyKeychain;
   address: Address;
+  evmAddress: string;
+  svmAddress: string;
 }
 export class ReadOnlyKeychain implements IKeychain {
   type: KeychainType.ReadOnlyKeychain = KeychainType.ReadOnlyKeychain;
   address?: Address;
+  evmAddress?: string;
+  svmAddress?: string;
 
   init(options: SerializedReadOnlyKeychain) {
     this.deserialize(options);
@@ -30,6 +35,10 @@ export class ReadOnlyKeychain implements IKeychain {
     throw new Error('Method not implemented.');
   }
 
+  getKeyPair(_address: Address): Keypair {
+    throw new Error('[ReadOnlyKeychain] Method not implemented.');
+  }
+
   addAccountAtIndex(index: number, address: Address): Promise<Address> {
     throw new Error('Method not implemented.');
   }
@@ -38,6 +47,8 @@ export class ReadOnlyKeychain implements IKeychain {
     return {
       address: this.address as Address,
       type: this.type,
+      evmAddress: this.evmAddress as string,
+      svmAddress: this.svmAddress as string,
     };
   }
 
@@ -54,9 +65,7 @@ export class ReadOnlyKeychain implements IKeychain {
   }
 
   getAccounts(): Promise<Array<Address>> {
-    const addresses = (this.address as Address)
-      ? [this.address as Address]
-      : [];
+    const addresses = this.address ? [this.address] : [];
     return Promise.resolve(addresses);
   }
 

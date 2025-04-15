@@ -12,6 +12,7 @@ import AppEth, { ledgerService } from '@ledgerhq/hw-app-eth';
 import type Transport from '@ledgerhq/hw-transport';
 import TransportWebHID from '@ledgerhq/hw-transport-webhid';
 import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import { Address } from 'viem';
 
 import { i18n } from '~/core/languages';
@@ -88,7 +89,10 @@ export async function signTransactionFromLedger(
 
     const parsedTx = parse(serializedTransaction);
 
-    if (parsedTx.from?.toLowerCase() !== address?.toLowerCase()) {
+    if (
+      validateAndFormatAddress(parsedTx.from) !==
+      validateAndFormatAddress(address)
+    ) {
       throw new Error('Transaction was not signed by the right address');
     }
 

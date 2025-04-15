@@ -108,6 +108,10 @@ export const useInfiniteTransactionList = ({
           currency: currency,
         });
 
+        if (!transaction) {
+          return;
+        }
+
         let description = '';
         const formattedAddress = truncateAddress(transaction.to || '0x');
         if (ac.category == Category.SEND) {

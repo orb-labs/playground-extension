@@ -1,3 +1,5 @@
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
+
 import { RainbowError, logger } from '~/logger';
 
 import { ahaHttp } from '../network/aha';
@@ -45,7 +47,9 @@ export const autoDiscoverAccountsFromIndex = async ({
 
     const firstNotUsedAddressIndex = addresses.findIndex(
       (address) =>
-        !addressesHaveBeenUsed.data.addresses[address?.toLowerCase()],
+        !addressesHaveBeenUsed.data.addresses[
+          validateAndFormatAddress(address)!
+        ],
     );
 
     return {

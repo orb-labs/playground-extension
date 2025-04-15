@@ -55,7 +55,7 @@
     "notifications"
   ],
   "short_name": "OrbyPlayground",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "web_accessible_resources": [
     {
       "matches": ["<all_urls>"],

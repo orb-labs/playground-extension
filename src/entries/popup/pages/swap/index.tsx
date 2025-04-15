@@ -593,6 +593,12 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     fetchSwapTransaction();
   }, [quoteData]);
 
+  const gasToken = useMemo(() => {
+    return selectedGasToken?.standardizedTokenId
+      ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
+      : undefined;
+  }, [selectedGasToken]);
+
   const { operationSet, virtualNode, aggregateFee, isLoading } =
     useGetOperationsToExecuteTransaction(
       swapTransaction?.from?.toLowerCase(),
@@ -602,9 +608,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
       swapTransaction?.value
         ? BigInt(swapTransaction?.value.toString())
         : undefined,
-      selectedGasToken.standardizedTokenId
-        ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
-        : undefined,
+      gasToken,
     );
 
   const { assetToSellNativeDisplay, assetToBuyNativeDisplay } =

@@ -1,3 +1,4 @@
+import { VMType } from '@orb-labs/orby-core';
 import { Address } from 'viem';
 
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
@@ -22,6 +23,7 @@ export const RequestAccountsActions = ({
   appName,
   loading = false,
   dappStatus,
+  vmType,
 }: {
   appName?: string;
   selectedWallet: Address;
@@ -32,6 +34,7 @@ export const RequestAccountsActions = ({
   onRejectRequest: () => void;
   loading?: boolean;
   dappStatus?: DAppStatus;
+  vmType?: VMType;
 }) => {
   const isScamDapp = dappStatus === DAppStatus.Scam;
   return (
@@ -42,12 +45,14 @@ export const RequestAccountsActions = ({
             <BottomSwitchWallet
               selectedWallet={selectedWallet}
               setSelectedWallet={setSelectedWallet}
+              setSelectedChainId={setSelectedChainId}
             />
           </Column>
           <Column>
             <BottomSwitchNetwork
               selectedChainId={selectedChainId}
               setSelectedChainId={setSelectedChainId}
+              vmType={vmType}
             />
           </Column>
         </Columns>

@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ### Testing
 
+## [v0.0.2](https://github.com/orb-labs/playground-extension/releases/tag/v0.0.2)
+
+### Added
+
+- Updating the orby npm package
+
 ## [v0.0.1](https://github.com/orb-labs/playground-extension/releases/tag/v0.0.1)
 
 ### Added

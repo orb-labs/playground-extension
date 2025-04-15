@@ -1,12 +1,16 @@
 import { TransactionRequest } from '@ethersproject/abstract-provider';
-import { OperationStatus, OperationStatusType } from '@orb-labs/orby-core';
+import {
+  OperationStatus,
+  OperationStatusType,
+  validateAndFormatAddress,
+} from '@orb-labs/orby-core';
 import {
   useGetOperationsToExecuteTransaction,
   useOrby,
 } from '@orb-labs/orby-react';
 import _ from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Address } from 'viem';
+import { Address, Hex, PublicClient } from 'viem';
 
 import { analytics } from '~/analytics';
 import { event } from '~/analytics/event';
@@ -85,60 +89,69 @@ export function SendTransaction({
 
   const txRequest = request?.params?.[0] as TransactionRequest;
 
-  const { accountCluster, baseMainnetClient } = useOrby();
-  const { operations, operationSet, virtualNode, aggregateFee, isLoading } =
+  const { accountCluster, baseMainnetClient, getCachedVirtualNode } = useOrby();
+
+  const gasToken = useMemo(() => {
+    return selectedGasToken?.standardizedTokenId
+      ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
+      : undefined;
+  }, [selectedGasToken]);
+
+  const { operationSet, virtualNode, aggregateFee, isLoading } =
     useGetOperationsToExecuteTransaction(
-      activeSession?.address?.toLowerCase(),
+      validateAndFormatAddress(activeSession?.address),
       activeSession?.chainId ? BigInt(activeSession.chainId) : undefined,
       txRequest.to as string,
       txRequest.data as string,
       txRequest.value ? BigInt(txRequest.value.toString()) : undefined,
-      selectedGasToken.standardizedTokenId
-        ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
-        : undefined,
+      gasToken,
     );
 
   const operationStatusesUpdated = useCallback(
-    (
+    async (
       statusSummary: OperationStatusType,
       finalTransactionStatus?: OperationStatus,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       statuses?: OperationStatus[],
     ) => {
+      if (statusSummary == OperationStatusType.WAITING_PRECONDITION) {
+        return;
+      }
+
       if (
-        operations &&
         activeSession &&
-        statuses &&
+        [OperationStatusType.FAILED, OperationStatusType.NOT_FOUND].includes(
+          statusSummary,
+        )
+      ) {
+        approveRequest(finalTransactionStatus?.hash);
+        setWaitingForDevice(false);
+        setLoading(false);
+      } else if (
+        activeSession &&
         [OperationStatusType.SUCCESSFUL, OperationStatusType.PENDING].includes(
           statusSummary,
         )
       ) {
-        const activeChainId = chainIdToUse(
-          connectedToHardhat,
-          connectedToHardhatOp,
-          activeSession.chainId,
-        );
+        const virtualNode = getCachedVirtualNode(
+          activeSession.address,
+          BigInt(activeSession.chainId),
+        ) as unknown as PublicClient;
 
-        analytics.track(event.dappPromptSendTransactionApproved, {
-          chainId: activeChainId,
-          dappURL: dappMetadata?.appHost || '',
-          dappName: dappMetadata?.appName,
-        });
+        let transactionHash = finalTransactionStatus?.hash;
+        if (request.method != 'signAndSendTransaction') {
+          const receipt = await virtualNode?.waitForTransactionReceipt({
+            hash: finalTransactionStatus?.hash as Hex,
+          });
+          transactionHash = receipt?.transactionHash;
+        }
 
-        approveRequest(finalTransactionStatus?.hash);
+        approveRequest(transactionHash);
         setWaitingForDevice(false);
         setLoading(false);
       }
     },
-    [
-      activeSession,
-      approveRequest,
-      setWaitingForDevice,
-      connectedToHardhat,
-      connectedToHardhatOp,
-      dappMetadata?.appHost,
-      dappMetadata?.appName,
-      operations,
-    ],
+    [activeSession, approveRequest, getCachedVirtualNode, request.method],
   );
 
   const onAcceptRequest = useCallback(async () => {
@@ -167,8 +180,10 @@ export function SendTransaction({
 
       const { operationResponses, success } =
         await virtualNode.sendOperationSet(
-          accountCluster.accountClusterId,
+          accountCluster,
           operationSet,
+          signOperation,
+          undefined,
           signOperation,
         );
 
@@ -182,6 +197,7 @@ export function SendTransaction({
       const ids = operationResponses
         ?.map((op) => op.id)
         .filter((id) => !_.isUndefined(id));
+
       baseMainnetClient?.subscribeToOperationStatuses(
         ids,
         operationStatusesUpdated,

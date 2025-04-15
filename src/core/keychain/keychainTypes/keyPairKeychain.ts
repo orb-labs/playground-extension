@@ -2,6 +2,7 @@
 import { Signer } from '@ethersproject/abstract-signer';
 import { Mnemonic } from '@ethersproject/hdnode';
 import { Wallet } from '@ethersproject/wallet';
+import { Keypair } from '@solana/web3.js';
 import { Address } from 'viem';
 import { mainnet } from 'viem/chains';
 
@@ -31,11 +32,17 @@ export class KeyPairKeychain implements IKeychain {
     this.deserialize(options);
   }
 
-  getSigner(address: Address): Signer {
+  getSigner(_address: Address): Signer {
     const provider = getProvider({ chainId: mainnet.id });
     const wallet = privates.get(this).wallets[0] as TWallet;
     if (!wallet) throw new Error('Account not found');
     return new RainbowSigner(provider, wallet.privateKey, wallet.address);
+  }
+
+  getKeyPair(_address: Address): Keypair {
+    const wallet = privates.get(this).wallets[0] as TWallet;
+    if (!wallet) throw new Error('[KeyPairKeychain] Account not found');
+    return wallet.svmKey;
   }
 
   async serialize(): Promise<SerializedKeypairKeychain> {
@@ -59,10 +66,13 @@ export class KeyPairKeychain implements IKeychain {
   }
 
   getAccounts(): Promise<Array<Address>> {
-    const addresses = privates
+    console.log(privates.get(this).wallets);
+    return privates
       .get(this)
-      .wallets.map((wallet: Wallet) => (wallet as Wallet).address as Address);
-    return Promise.resolve(addresses);
+      .wallets.map((wallet: TWallet) => {
+        return [wallet.evmAddress, wallet.svmAddress];
+      })
+      .flatMap();
   }
 
   async exportAccount(address: Address): Promise<PrivateKey> {

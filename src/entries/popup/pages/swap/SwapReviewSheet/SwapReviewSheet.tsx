@@ -320,11 +320,12 @@ const SwapReviewSheetWithQuote = ({
   const operationStatusesUpdated = useCallback(
     async (
       statusSummary: OperationStatusType,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       finalTransactionStatus?: OperationStatus,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       statuses?: OperationStatus[],
     ) => {
       if (
-        statuses &&
         !isSendingFinalTransaction &&
         [OperationStatusType.SUCCESSFUL, OperationStatusType.PENDING].includes(
           statusSummary,
@@ -379,8 +380,10 @@ const SwapReviewSheetWithQuote = ({
     }
 
     const { operationResponses } = await virtualNode.sendOperationSet(
-      accountCluster.accountClusterId,
+      accountCluster,
       operationSet,
+      signOperation,
+      undefined,
       signOperation,
     );
 

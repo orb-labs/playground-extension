@@ -1,13 +1,13 @@
 import { AnimatePresence, motion, useAnimationControls } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
+import rainbowOg from 'static/assets/rainbow/og-orblabs.png';
 import { i18n } from '~/core/languages';
 import { usePendingRequestStore } from '~/core/state';
 import { useWalletBackupsStore } from '~/core/state/walletBackups';
 import { Box, Stack, Text } from '~/design-system';
 
 import { FlyingRainbows } from '../../components/FlyingRainbows/FlyingRainbows';
-import { LogoWithLetters } from '../../components/LogoWithLetters/LogoWithLetters';
 
 import { ImportOrCreateWallet } from './ImportOrCreateWallet';
 import { OnboardBeforeConnectSheet } from './OnboardBeforeConnectSheet';
@@ -38,7 +38,12 @@ export function Welcome() {
         >
           <Stack space="4px">
             <Box width="full" display="flex" justifyContent="center">
-              <LogoWithLetters color="label" />
+              <Box
+                as={motion.img}
+                src={rainbowOg}
+                position="absolute"
+                style={{ top: '120px', height: '24px', width: '120px' }}
+              />
             </Box>
             <Box
               width="full"

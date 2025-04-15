@@ -3,9 +3,16 @@ import {
   FungibleTokenAmount,
   OnchainOperation,
   OperationDataFormat,
-  SignedOperation,
   StandardizedBalance,
+  VMType,
+  getVirtualEnvironment,
 } from '@orb-labs/orby-core';
+import {
+  AddressLookupTableAccount,
+  Connection,
+  TransactionMessage,
+  VersionedTransaction,
+} from '@solana/web3.js';
 import BigNumber from 'bignumber.js';
 import { providers } from 'ethers';
 import _ from 'lodash';
@@ -77,9 +84,17 @@ export const convertStandardizedBalanceToParsedUserAsset = (
 export const convertStandardizedBalanceToParsedUserAssets = (
   balances: StandardizedBalance[],
 ): ParsedUserAsset[] => {
-  return balances.map((balance) =>
-    convertStandardizedBalanceToParsedUserAsset(balance),
-  );
+  return balances
+    .map((balance) => convertStandardizedBalanceToParsedUserAsset(balance))
+    ?.sort((a, b) => {
+      if (a.isNativeAsset && b.isNativeAsset) {
+        return 0;
+      } else if (a.isNativeAsset) {
+        return -1;
+      }
+
+      return 1;
+    });
 };
 
 export const convertFungibleTokenAmountToParsedUserAsset = (
@@ -149,9 +164,105 @@ export const convertTokenBalancesOnChainsToParsedUserAssets = (
   );
 };
 
+export const getWalletVirtualEnvironment = (
+  address: string,
+): VMType | undefined => {
+  const startsWith0xLen42HexRegex = /^0x[0-9a-fA-F]{40}$/;
+  const solanaRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+  if (startsWith0xLen42HexRegex.test(address)) {
+    return VMType.EVM;
+  } else if (solanaRegex.test(address)) {
+    return VMType.SVM;
+  }
+
+  return undefined;
+};
+
+export async function signSVMTransaction(
+  txRpcUrl: string,
+  data: string,
+  from?: string,
+): Promise<string> {
+  const keypair = await keychainManager.getKeyPair(from as Address);
+  const connection = new Connection(txRpcUrl);
+
+  const originalTransaction = VersionedTransaction.deserialize(
+    Buffer.from(data, 'hex'),
+  );
+
+  // Fetch the lookup tables from the blockchain
+  const lookupTableAddresses =
+    originalTransaction.message.addressTableLookups.map(
+      (lookup) => lookup.accountKey,
+    );
+  const lookupTableAccounts =
+    await connection.getMultipleAccountsInfo(lookupTableAddresses);
+
+  // Create the necessary lookup table account objects
+  const addressLookupTableAccounts = lookupTableAccounts.map((account, i) => {
+    return new AddressLookupTableAccount({
+      key: lookupTableAddresses[i],
+      state: AddressLookupTableAccount.deserialize(account.data),
+    });
+  });
+
+  const originalMessage = TransactionMessage.decompile(
+    originalTransaction.message,
+    { addressLookupTableAccounts },
+  );
+
+  const { blockhash } = await connection.getLatestBlockhash();
+  const versionedMergedTxMessage = new TransactionMessage({
+    payerKey: originalMessage.payerKey,
+    recentBlockhash: blockhash,
+    instructions: originalMessage.instructions,
+  }).compileToV0Message();
+
+  const versionMergedTx = new VersionedTransaction(versionedMergedTxMessage);
+
+  console.log(
+    'originalMessage',
+    originalTransaction,
+    keypair,
+    txRpcUrl,
+    from,
+    keypair.publicKey?.toString(),
+  );
+
+  originalMessage.instructions.forEach((instruction, idx) => {
+    console.log(`Instruction ${idx + 1}:`);
+
+    // Iterate through the keys in each instruction to check for 'isSigner: true'
+    instruction.keys.forEach((key) => {
+      if (key.isSigner) {
+        console.log(`Account ${key.pubkey.toBase58()} is a signer`);
+      } else {
+        console.log(`Account ${key.pubkey.toBase58()} is NOT a signer`);
+      }
+    });
+  });
+
+  versionMergedTx.sign([
+    {
+      publicKey: keypair.publicKey,
+      secretKey: keypair.secretKey,
+    },
+  ]);
+
+  return Buffer.from(versionMergedTx.serialize())?.toString('hex');
+}
+
 export async function signOperation(
   operation: OnchainOperation,
-): Promise<SignedOperation> {
+): Promise<string> {
+  if (getVirtualEnvironment(operation.chainId) == VMType.SVM) {
+    return signSVMTransaction(
+      operation.txRpcUrl,
+      operation.data,
+      operation.from,
+    );
+  }
+
   const provider = new providers.JsonRpcProvider(operation.txRpcUrl);
   const signer = await keychainManager.getSigner(operation.from as Address);
   const wallet = signer.connect(provider);
@@ -173,8 +284,7 @@ export async function signOperation(
 
     // eslint-disable-next-line no-await-in-loop
     const tx = await wallet.populateTransaction(txData);
-    const signedTx = await signer.signTransaction(tx);
-    return { type: operation.type, signature: signedTx };
+    return await signer.signTransaction(tx);
   } else {
     const parsedData = JSON.parse(operation.data) as {
       domain: TypedDataDomain;
@@ -182,6 +292,7 @@ export async function signOperation(
       message: Record<string, any>;
     };
 
+    delete parsedData.types['EIP712Domain'];
     // @ts-ignore
     const signature = await wallet.signTypedData(
       parsedData.domain,
@@ -189,6 +300,6 @@ export async function signOperation(
       parsedData.message,
     );
 
-    return { type: operation.type, signature, data: operation.data };
+    return signature;
   }
 }

@@ -1,6 +1,7 @@
 import 'chromedriver';
 import 'geckodriver';
 import { getAddress } from '@ethersproject/address';
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import { WebDriver } from 'selenium-webdriver';
 import {
   afterAll,
@@ -101,7 +102,7 @@ describe.runIf(browser !== 'firefox')('App interactions flow', () => {
     });
     await findElementByTestIdAndClick({ id: 'set-password-button', driver });
     await delayTime('long');
-    await findElementByText(driver, 'Rainbow is ready to use');
+    await findElementByText(driver, 'OrbyPlayground is ready to use');
   });
 
   it('should be able to go to setings', async () => {
@@ -223,7 +224,9 @@ describe.runIf(browser !== 'firefox')('App interactions flow', () => {
       id: 'signTypedDataV3VerifyResult',
       driver,
     });
-    expect(result).toBe(TEST_VARIABLES.SEED_WALLET.ADDRESS.toLowerCase());
+    expect(result).toBe(
+      validateAndFormatAddress(TEST_VARIABLES.SEED_WALLET.ADDRESS),
+    );
   });
 
   it('should be able to sign typed data (v4)', async () => {
@@ -262,7 +265,9 @@ describe.runIf(browser !== 'firefox')('App interactions flow', () => {
       id: 'signTypedDataV4VerifyResult',
       driver,
     });
-    expect(result).toBe(TEST_VARIABLES.SEED_WALLET.ADDRESS.toLowerCase());
+    expect(result).toBe(
+      validateAndFormatAddress(TEST_VARIABLES.SEED_WALLET.ADDRESS),
+    );
   });
 
   it('should be able to switch network to hardhat', async () => {

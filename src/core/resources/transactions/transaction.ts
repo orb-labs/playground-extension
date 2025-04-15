@@ -94,12 +94,11 @@ const fetchTransactionDataFromProvider = async ({
   chainId: number;
   hash: Hash;
   account: Address;
-}): Promise<RainbowTransaction> => {
+}): Promise<RainbowTransaction | undefined> => {
   const provider = getProvider({ chainId });
   const transaction = await provider.getTransaction(hash);
 
-  if (!transaction)
-    throw `getCustomChainTransaction: couldn't find transaction`;
+  if (!transaction) return undefined;
 
   const decimals = 18; // assuming every chain uses 18 decimals
   const value = formatUnits(transaction.value, decimals);

@@ -903,7 +903,7 @@
     "unlock": "Desbloquear",
     "having_trouble": "¿Tienes problemas?",
     "contact": "Contacto",
-    "rainbow_support": "Soporte de Rainbow"
+    "rainbow_support": "Soporte de OrbyPlayground"
   },
   "onboard_before_connect": {
     "before_connect": "Antes de que puedas conectar",
@@ -911,7 +911,7 @@
     "setup_wallet": "Configurar tu billetera"
   },
   "welcome": {
-    "title": "Rainbow",
+    "title": "OrbyPlayground",
     "subtitle": "Explora el nuevo mundo de Ethereum",
     "create_wallet": "Crear una nueva billetera",
     "import_wallet": "Importar o conectar una billetera",

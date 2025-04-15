@@ -384,6 +384,12 @@ export function Send() {
     return txToAddress;
   }, [nft, txToAddress]);
 
+  const gasToken = useMemo(() => {
+    return selectedGasToken?.standardizedTokenId
+      ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
+      : undefined;
+  }, [selectedGasToken]);
+
   const { operations, operationSet, virtualNode, aggregateFee, isLoading } =
     useGetOperationsToExecuteTransaction(
       fromAddress as string,
@@ -391,9 +397,7 @@ export function Send() {
       to,
       data as string,
       value ? BigInt(value.toString()) : undefined,
-      selectedGasToken.standardizedTokenId
-        ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
-        : undefined,
+      gasToken,
     );
 
   const {
@@ -494,8 +498,10 @@ export function Send() {
 
           const { operationResponses, primaryOperationStatus } =
             await virtualNode.sendOperationSet(
-              accountCluster.accountClusterId,
+              accountCluster,
               operationSet,
+              signOperation,
+              undefined,
               signOperation,
             );
 

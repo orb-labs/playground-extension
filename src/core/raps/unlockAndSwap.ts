@@ -1,3 +1,4 @@
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import {
   ALLOWS_PERMIT,
   ETH_ADDRESS as ETH_ADDRESS_AGGREGATOR,
@@ -147,7 +148,9 @@ export const createUnlockAndSwapRap = async (
     !nativeAsset &&
     chainId === ChainId.mainnet &&
     ALLOWS_PERMIT[
-      assetToSell.address?.toLowerCase() as keyof PermitSupportedTokenList
+      validateAndFormatAddress(
+        assetToSell.address,
+      ) as keyof PermitSupportedTokenList
     ];
 
   if (swapAssetNeedsUnlocking && !allowsPermit) {

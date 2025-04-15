@@ -1,10 +1,9 @@
-import { Account, AccountType, VMType } from '@orb-labs/orby-core';
+import { Account, AccountType } from '@orb-labs/orby-core';
 import { OrbyProvider } from '@orb-labs/orby-react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { isEqual } from 'lodash';
 import * as React from 'react';
-import { useMemo } from 'react';
 import { WagmiProvider } from 'wagmi';
 
 import { analytics } from '~/analytics';
@@ -23,6 +22,7 @@ import {
 } from '~/core/state';
 import { useCurrentThemeStore } from '~/core/state/currentSettings/currentTheme';
 import { POPUP_DIMENSIONS } from '~/core/utils/dimensions';
+import { getWalletVirtualEnvironment } from '~/core/utils/orb';
 import { WagmiConfigUpdater, wagmiConfig } from '~/core/wagmi';
 import { Box, ThemeProvider } from '~/design-system';
 
@@ -98,23 +98,21 @@ export function App() {
   const { currentTheme } = useCurrentThemeStore();
   const isFullScreen = useIsFullScreen();
 
-  const { currentAddress } = useCurrentAddressStore();
+  const { currentAddresses } = useCurrentAddressStore();
 
-  const orbyConfig = useMemo(() => {
+  const orbyConfig = React.useMemo(() => {
+    const accounts = currentAddresses?.map((address) => {
+      const vm = getWalletVirtualEnvironment(address);
+      return new Account(address, AccountType.EOA, vm!, undefined);
+    });
+
     return {
       instancePrivateAPIKey: process.env.ORBY_PRIVATE_API_KEY as string,
       instancePublicAPIKey: process.env.ORBY_PUBLIC_API_KEY as string,
       appName: 'Rainbow',
-      accounts: [
-        new Account(
-          currentAddress?.toLowerCase(),
-          AccountType.EOA,
-          VMType.EVM,
-          undefined,
-        ),
-      ],
+      accounts,
     };
-  }, [currentAddress]);
+  }, [currentAddresses]);
 
   return (
     <>

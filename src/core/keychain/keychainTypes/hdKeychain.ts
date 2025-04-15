@@ -2,8 +2,12 @@
 import { Signer } from '@ethersproject/abstract-signer';
 import { BytesLike } from '@ethersproject/bytes';
 import { Wallet } from '@ethersproject/wallet';
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import * as bip39 from '@scure/bip39';
 import { wordlist as englishWordlist } from '@scure/bip39/wordlists/english';
+import { Keypair } from '@solana/web3.js';
+import * as bip392 from 'bip39';
+import { derivePath } from 'ed25519-hd-key';
 import { HDKey } from 'ethereum-cryptography/hdkey';
 import { bytesToHex } from 'ethereum-cryptography/utils';
 import { Address } from 'viem';
@@ -19,6 +23,9 @@ import { autoDiscoverAccounts } from '../utils';
 
 export interface RainbowHDKey extends HDKey {
   address: Address;
+  evmAddress: string;
+  svmAddress: string;
+  svmKey: Keypair;
 }
 
 type SupportedHDPath = "m/44'/60'/0'/0";
@@ -43,7 +50,7 @@ const privates = new WeakMap<
     hdPath: SupportedHDPath;
     getWalletForAddress(address: Address): Wallet | undefined;
     deriveWallet(index: number): RainbowHDKey;
-    addAccount(index: number): Wallet;
+    addAccount(index: number): TWallet;
   }
 >();
 
@@ -65,7 +72,10 @@ export class HdKeychain implements IKeychain {
           .get(this)!
           .wallets.find(
             ({ wallet }) =>
-              wallet.address.toLowerCase() === address.toLowerCase(),
+              validateAndFormatAddress(wallet.svmAddress) ===
+                validateAndFormatAddress(address) ||
+              validateAndFormatAddress(wallet.evmAddress) ===
+                validateAndFormatAddress(address),
           )?.wallet;
       },
       deriveWallet: (index: number): RainbowHDKey => {
@@ -77,12 +87,24 @@ export class HdKeychain implements IKeychain {
         const root = hdNode.derive(_privates.hdPath);
         const derivedWallet = root.deriveChild(index) as RainbowHDKey;
         const pkeyHex = bytesToHex(derivedWallet.privateKey as Uint8Array);
+
+        const seed2 = bip392.mnemonicToSeedSync(_privates.mnemonic);
+        const derivedKey1 = derivePath(
+          `m/44'/501'/${index}'/0'`,
+          seed2.toString('hex'),
+        );
+        const keypair = Keypair.fromSeed(Uint8Array.from(derivedKey1.key));
+
         const wallet = new Wallet(pkeyHex) as TWallet;
         derivedWallet.address = wallet.address;
+        derivedWallet.evmAddress = derivedWallet.address;
+        derivedWallet.svmAddress = keypair.publicKey.toString();
+        derivedWallet.svmKey = keypair;
+
         return derivedWallet;
       },
 
-      addAccount: (index: number): Wallet => {
+      addAccount: (index: number): TWallet => {
         const _privates = privates.get(this)!;
         const derivedWallet = _privates.deriveWallet(index);
 
@@ -103,6 +125,10 @@ export class HdKeychain implements IKeychain {
         const wallet = new Wallet(
           derivedWallet.privateKey as BytesLike,
         ) as TWallet;
+
+        wallet.evmAddress = derivedWallet.evmAddress;
+        wallet.svmAddress = derivedWallet.svmAddress;
+        wallet.svmKey = derivedWallet.svmKey;
         _privates.wallets.push({ wallet, index: derivedWallet.index });
         return wallet;
       },
@@ -120,6 +146,13 @@ export class HdKeychain implements IKeychain {
     const wallet = _privates!.getWalletForAddress(address) as TWallet;
     if (!wallet) throw new Error('Account not found');
     return new RainbowSigner(provider, wallet.privateKey, wallet.address);
+  }
+
+  getKeyPair(address: Address): Keypair {
+    const _privates = privates.get(this)!;
+    const wallet = _privates!.getWalletForAddress(address) as TWallet;
+    if (!wallet) throw new Error('[HdKeychain] Account not found');
+    return wallet.svmKey;
   }
 
   async serialize(): Promise<SerializedHdKeychain> {
@@ -204,12 +237,18 @@ export class HdKeychain implements IKeychain {
       (i) => i !== index,
     );
 
-    return Promise.resolve(newAccount.address as Address);
+    return Promise.resolve(newAccount.address);
   }
 
   getAccounts(): Promise<Array<Address>> {
     const _privates = privates.get(this)!;
-    const addresses = _privates.wallets.map(({ wallet }) => wallet.address);
+    const addresses = _privates.wallets
+      .map(({ wallet }) => [
+        wallet.evmAddress as Address,
+        wallet.svmAddress as Address,
+      ])
+      .flat();
+
     return Promise.resolve(addresses);
   }
 

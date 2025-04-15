@@ -45,6 +45,7 @@ export const CreateWalletPrompt = ({
   const [error, setError] = useState<string | null>(null);
   const saveWalletName = useWalletNamesStore.use.saveWalletName();
   const setCurrentAddress = useCurrentAddressStore.use.setCurrentAddress();
+  const setCurrentAddresses = useCurrentAddressStore.use.setCurrentAddresses();
   const [newWallet, setNewWallet] = useState<KeychainWallet | null>();
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export const CreateWalletPrompt = ({
     const name = walletName.trim();
     if (name) saveWalletName({ name, address });
     setCurrentAddress(address);
+    setCurrentAddresses([address]);
     !fromChooseGroup
       ? navigate(ROUTES.HOME, { state: { isBack: true } })
       : navigate(
@@ -78,6 +80,7 @@ export const CreateWalletPrompt = ({
     navigate,
     saveWalletName,
     setCurrentAddress,
+    setCurrentAddresses,
     fromChooseGroup,
     state?.password,
     walletName,

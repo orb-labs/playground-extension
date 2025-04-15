@@ -12,6 +12,7 @@ import {
   serialize,
 } from '@ethersproject/transactions';
 import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util';
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import transformTypedDataPlugin from '@trezor/connect-plugin-ethereum';
 import { Address } from 'viem';
 
@@ -79,7 +80,10 @@ export async function signTransactionFromTrezor(
       });
 
       const parsedTx = parse(serializedTransaction);
-      if (parsedTx.from?.toLowerCase() !== address?.toLowerCase()) {
+      if (
+        validateAndFormatAddress(parsedTx.from) !==
+        validateAndFormatAddress(address)
+      ) {
         throw new Error('Transaction was not signed by the right address');
       }
 
@@ -134,7 +138,10 @@ export async function signMessageByTypeFromTrezor(
       hex: true,
     });
 
-    if (response.payload.address.toLowerCase() !== address.toLowerCase()) {
+    if (
+      validateAndFormatAddress(response.payload.address) !==
+      validateAndFormatAddress(address)
+    ) {
       throw new Error(
         'Trezor returned a different address than the one requested',
       );
@@ -185,7 +192,10 @@ export async function signMessageByTypeFromTrezor(
       throw new Error('Trezor returned an error');
     }
 
-    if (response.payload.address.toLowerCase() !== address.toLowerCase()) {
+    if (
+      validateAndFormatAddress(response.payload.address) !==
+      validateAndFormatAddress(address)
+    ) {
       throw new Error(
         'Trezor returned a different address than the one requested',
       );

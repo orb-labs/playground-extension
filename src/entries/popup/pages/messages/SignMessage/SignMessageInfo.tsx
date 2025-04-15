@@ -127,8 +127,6 @@ export const SignMessageInfo = ({
 
   const tabLabel = (tab: string) => i18n.t(tab, { scope: 'simulation.tabs' });
 
-  console.log('SignMessageInfo', operationSet);
-
   return (
     <Box
       background="surfacePrimaryElevatedSecondary"

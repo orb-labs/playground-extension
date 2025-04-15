@@ -1,3 +1,4 @@
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import * as React from 'react';
 
 import { analytics } from '~/analytics';
@@ -199,7 +200,7 @@ const calculateCommandRelevance = (
       command.type === SearchItemType.Contact
     ) {
       const normalizedAddress = command.address
-        ? command.address.toLowerCase()
+        ? validateAndFormatAddress(command.address)
         : '';
       const normalizedWalletName = command.walletName
         ? command.walletName.toLowerCase()

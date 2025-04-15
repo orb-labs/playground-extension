@@ -63,7 +63,7 @@ export function FlyingRainbows({ children }: { children: React.ReactNode }) {
         right="0"
         bottom="0"
       >
-        <Box
+        {/* <Box
           as={motion.img}
           src={rainbowWhite}
           position="absolute"
@@ -71,8 +71,8 @@ export function FlyingRainbows({ children }: { children: React.ReactNode }) {
           initial={RAINBOW_POSITION.rainbowWhite['welcome']}
           animate={rainbowWhiteControls}
           transition={RAINBOW_TRANSITION}
-        />
-        <Box
+        /> */}
+        {/* <Box
           as={motion.img}
           src={rainbowPixel}
           position="absolute"
@@ -80,8 +80,8 @@ export function FlyingRainbows({ children }: { children: React.ReactNode }) {
           initial={RAINBOW_POSITION.rainbowPixel['welcome']}
           animate={rainbowPixelControls}
           transition={RAINBOW_TRANSITION}
-        />
-        <Box
+        /> */}
+        {/* <Box
           as={motion.img}
           src={rainbowOg}
           position="absolute"
@@ -89,8 +89,8 @@ export function FlyingRainbows({ children }: { children: React.ReactNode }) {
           initial={RAINBOW_POSITION.rainbowOg['welcome']}
           animate={rainbowOgControls}
           transition={RAINBOW_TRANSITION}
-        />
-        <Box
+        /> */}
+        {/* <Box
           as={motion.img}
           src={rainbowLight}
           position="absolute"
@@ -98,8 +98,8 @@ export function FlyingRainbows({ children }: { children: React.ReactNode }) {
           initial={RAINBOW_POSITION.rainbowLight['welcome']}
           animate={rainbowLightControls}
           transition={RAINBOW_TRANSITION}
-        />
-        <Box
+        /> */}
+        {/* <Box
           as={motion.img}
           src={rainbowNeon}
           position="absolute"
@@ -107,7 +107,7 @@ export function FlyingRainbows({ children }: { children: React.ReactNode }) {
           initial={RAINBOW_POSITION.rainbowNeon['welcome']}
           animate={rainbowNeonControls}
           transition={RAINBOW_TRANSITION}
-        />
+        /> */}
       </Box>
       {children}
     </Box>

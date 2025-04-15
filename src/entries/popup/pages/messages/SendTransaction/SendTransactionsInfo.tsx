@@ -46,7 +46,6 @@ import {
   MaliciousRequestWarning,
   getDappStatusBadge,
 } from '../DappScanStatus';
-import { SimulationOverview } from '../Simulation';
 import { CopyButton, TabContent, Tabs } from '../Tabs';
 import {
   SimulationError,
@@ -104,9 +103,6 @@ const InfoRow = ({
 
 const Overview = memo(function Overview({
   chainId,
-  simulation,
-  status,
-  error,
   metadata,
 }: {
   chainId: ChainId;
@@ -123,7 +119,7 @@ const Overview = memo(function Overview({
 
   return (
     <Stack space="16px" paddingTop="14px">
-      <Text size="12pt" weight="semibold" color="labelTertiary">
+      {/* <Text size="12pt" weight="semibold" color="labelTertiary">
         {i18n.t('simulation.title')}
       </Text>
 
@@ -133,7 +129,7 @@ const Overview = memo(function Overview({
         error={error}
       />
 
-      <Separator color="separatorTertiary" />
+      <Separator color="separatorTertiary" /> */}
 
       {chainId && chainName && (
         <InfoRow
@@ -337,7 +333,7 @@ function TransactionInfo({
             : [
                 tabLabel('overview'),
                 'Route',
-                tabLabel('details'),
+                // tabLabel('details'),
                 tabLabel('data'),
               ]
         }

@@ -266,6 +266,7 @@ export const WatchWallet = ({
   );
 
   const setCurrentAddress = useCurrentAddressStore.use.setCurrentAddress();
+  const setCurrentAddresses = useCurrentAddressStore.use.setCurrentAddresses();
   const save = useSavedEnsNames.use.save();
 
   const [renameAccount, setRenameAccount] = useState<Address>();
@@ -286,6 +287,7 @@ export const WatchWallet = ({
         save(ensName, address);
       }
       setCurrentAddress(importedAddresses[0]);
+      setCurrentAddresses(importedAddresses);
       if (!onboarding && !ensName) setRenameAccount(address);
       else onFinishImporting?.();
     }
@@ -294,6 +296,7 @@ export const WatchWallet = ({
     ensName,
     address,
     setCurrentAddress,
+    setCurrentAddresses,
     onboarding,
     onFinishImporting,
     save,

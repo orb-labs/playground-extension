@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+import { connectAppSession, useOrby } from '@orb-labs/orby-react';
+import { useCallback, useMemo, useState } from 'react';
 import { Address } from 'viem';
 
 import { analytics } from '~/analytics';
@@ -10,6 +11,7 @@ import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 import { ProviderRequestPayload } from '~/core/transports/providerRequestTransport';
 import { ChainId } from '~/core/types/chains';
 import { getDappHostname } from '~/core/utils/connectedApps';
+import { getWalletVirtualEnvironment } from '~/core/utils/orb';
 import { Row, Rows, Separator } from '~/design-system';
 import { RainbowError, logger } from '~/logger';
 
@@ -17,7 +19,7 @@ import { RequestAccountsActions } from './RequestAccountsActions';
 import { RequestAccountsInfo } from './RequestAccountsInfo';
 
 interface ApproveRequestProps {
-  approveRequest: (payload: { address: Address; chainId: number }) => void;
+  approveRequest: (payload: { address: string; chainId: number }) => void;
   rejectRequest: () => void;
   request: ProviderRequestPayload;
 }
@@ -39,6 +41,8 @@ export const RequestAccounts = ({
     ?.chainId;
   const addSession = useAppSessionsStore.use.addSession();
 
+  const { baseMainnetClient, accountCluster } = useOrby();
+
   const { testnetMode } = useTestnetModeStore();
   const [selectedChainId, setSelectedChainId] = useState<ChainId>(
     (requestedChainId ? Number(requestedChainId) : undefined) ||
@@ -46,9 +50,24 @@ export const RequestAccounts = ({
   );
   const [selectedWallet, setSelectedWallet] = useState<Address>(currentAddress);
 
-  const onAcceptRequest = useCallback(() => {
+  const vmType = useMemo(() => {
+    return getWalletVirtualEnvironment(selectedWallet);
+  }, [selectedWallet]);
+
+  const onAcceptRequest = useCallback(async () => {
     try {
       setLoading(true);
+
+      if (!accountCluster?.accountClusterId) {
+        return;
+      }
+
+      await connectAppSession(
+        accountCluster?.accountClusterId,
+        dappMetadata?.appHost || '',
+        baseMainnetClient,
+      );
+
       approveRequest({
         address: selectedWallet,
         chainId: selectedChainId,
@@ -76,13 +95,15 @@ export const RequestAccounts = ({
       setLoading(false);
     }
   }, [
+    accountCluster?.accountClusterId,
+    dappMetadata?.appHost,
+    dappMetadata?.appHostName,
+    dappMetadata?.appName,
+    baseMainnetClient,
     approveRequest,
     selectedWallet,
     selectedChainId,
     addSession,
-    dappMetadata?.appHost,
-    dappMetadata?.appHostName,
-    dappMetadata?.appName,
     dappUrl,
   ]);
 
@@ -122,6 +143,7 @@ export const RequestAccounts = ({
           appName={appName}
           loading={loading}
           dappStatus={dappMetadata?.status}
+          vmType={vmType}
         />
       </Row>
     </Rows>

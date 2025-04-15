@@ -1,5 +1,6 @@
 import { Signer } from '@ethersproject/abstract-signer';
 import { Wallet } from '@ethersproject/wallet';
+import { Keypair } from '@solana/web3.js';
 import { Address } from 'viem';
 import { mainnet } from 'viem/chains';
 
@@ -89,6 +90,11 @@ export class HardwareWalletKeychain implements IKeychain {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getKeyPair(_address: Address): Keypair {
+    throw new Error('[HardwareWalletKeychain] Method not implemented.');
+  }
+
   getPath(address: Address): string {
     const wallet = privates
       .get(this)
@@ -130,7 +136,7 @@ export class HardwareWalletKeychain implements IKeychain {
   getAccounts(): Promise<Array<Address>> {
     const addresses = privates
       .get(this)
-      .wallets.map((wallet: Wallet) => (wallet as Wallet).address as Address);
+      .wallets.map((wallet: Wallet) => wallet as Wallet);
     return Promise.resolve(addresses);
   }
 

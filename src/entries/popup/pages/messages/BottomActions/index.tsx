@@ -1,3 +1,4 @@
+import { VMType, getVirtualEnvironment } from '@orb-labs/orby-core';
 import React, { useCallback, useImperativeHandle, useRef } from 'react';
 import { Address } from 'viem';
 import { useBalance } from 'wagmi';
@@ -6,11 +7,12 @@ import { analytics } from '~/analytics';
 import { event } from '~/analytics/event';
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
 import { i18n } from '~/core/languages';
-import { chainsLabel } from '~/core/references/chains';
+import { chainsLabel, supportedSwapChainIds } from '~/core/references/chains';
 import { shortcuts } from '~/core/references/shortcuts';
 import { useCurrentAddressStore } from '~/core/state';
 import { ChainId } from '~/core/types/chains';
 import { handleSignificantDecimals } from '~/core/utils/numbers';
+import { getWalletVirtualEnvironment } from '~/core/utils/orb';
 import {
   Box,
   Button,
@@ -32,6 +34,7 @@ import { useAccounts } from '~/entries/popup/hooks/useAccounts';
 import { useAppSession } from '~/entries/popup/hooks/useAppSession';
 import useKeyboardAnalytics from '~/entries/popup/hooks/useKeyboardAnalytics';
 import { useKeyboardShortcut } from '~/entries/popup/hooks/useKeyboardShortcut';
+import { useUserChains } from '~/entries/popup/hooks/useUserChains';
 import { useWalletInfo } from '~/entries/popup/hooks/useWalletInfo';
 import {
   getInputIsFocused,
@@ -138,14 +141,20 @@ export const BottomDisplayWallet = ({
 export const BottomSwitchWallet = ({
   selectedWallet,
   setSelectedWallet,
+  onlySwapSupportedNetworks = false,
+  setSelectedChainId,
 }: {
   selectedWallet: Address;
   setSelectedWallet: (selected: Address) => void;
+  onlySwapSupportedNetworks?: boolean;
+  setSelectedChainId: (selectedChainId: ChainId) => void;
 }) => {
   const setCurrentAddress = useCurrentAddressStore.use.setCurrentAddress();
   const { sortedAccounts } = useAccounts();
   const { trackShortcut } = useKeyboardAnalytics();
   const menuTriggerRef = useRef<{ triggerMenu: () => void }>(null);
+
+  const { chains: userChains } = useUserChains();
 
   const onOpenChange = useCallback((isOpen: boolean) => {
     isOpen && analytics.track(event.dappPromptConnectWalletClicked);
@@ -153,11 +162,32 @@ export const BottomSwitchWallet = ({
 
   const onValueChange = useCallback(
     (address: string) => {
+      const oldVM = getWalletVirtualEnvironment(selectedWallet);
+      const newVM = getWalletVirtualEnvironment(address);
+
+      if (oldVM != newVM) {
+        const chains = userChains.filter((chain) =>
+          onlySwapSupportedNetworks
+            ? supportedSwapChainIds.includes(chain.id) &&
+              (!newVM || newVM == getVirtualEnvironment(BigInt(chain.id)))
+            : !newVM || newVM == getVirtualEnvironment(BigInt(chain.id)),
+        );
+
+        setSelectedChainId(chains[0].id);
+      }
+
       setCurrentAddress(address as Address);
       setSelectedWallet(address as Address);
       analytics.track(event.dappPromptConnectWalletSwitched);
     },
-    [setCurrentAddress, setSelectedWallet],
+    [
+      selectedWallet,
+      setCurrentAddress,
+      setSelectedWallet,
+      userChains,
+      setSelectedChainId,
+      onlySwapSupportedNetworks,
+    ],
   );
 
   useKeyboardShortcut({
@@ -283,9 +313,11 @@ export const BottomDisplayNetwork = ({
 export const BottomSwitchNetwork = ({
   selectedChainId,
   setSelectedChainId,
+  vmType,
 }: {
   selectedChainId: ChainId;
   setSelectedChainId: (selectedChainId: ChainId) => void;
+  vmType?: VMType;
 }) => {
   return (
     <Stack space="8px">
@@ -306,6 +338,7 @@ export const BottomSwitchNetwork = ({
         triggerComponent={
           <BottomNetwork selectedChainId={selectedChainId} displaySymbol />
         }
+        vmType={vmType}
       />
     </Stack>
   );

@@ -6,7 +6,7 @@
     "toggle": "Toggle"
   },
   "permissions": {
-    "firefox_permission_denied": "Rainbow needs permission to access all websites to work properly. Please grant permission in order to continue."
+    "firefox_permission_denied": "OrbyPlayground needs permission to access all websites to work properly. Please grant permission in order to continue."
   },
   "wallet": {
     "rename": "Rename Wallet",
@@ -71,9 +71,9 @@
   },
   "settings": {
     "title": "Settings",
-    "use_rainbow_as_default_wallet": "Use Rainbow as default wallet",
+    "use_rainbow_as_default_wallet": "Use OrbyPlayground as default wallet",
     "sounds": "Sounds",
-    "default_wallet_description": "Allow apps to prioritize Rainbow when looking for an extension to connect with.",
+    "default_wallet_description": "Allow apps to prioritize OrbyPlayground when looking for an extension to connect with.",
     "contacts": "Contacts",
     "guides_and_support": "Guides & Support",
     "learn_about_ethereum": "Learn About Ethereum",
@@ -98,7 +98,7 @@
       "disabled": "Disabled",
       "enable": "Enable",
       "enabled": "Network Enabled",
-      "description": "Choose which networks and tokens to display. You can connect to any networks supported by Rainbow, even if they’re unchecked.",
+      "description": "Choose which networks and tokens to display. You can connect to any networks supported by OrbyPlayground, even if they’re unchecked.",
       "developer_tools": {
         "title": "Enable Developer Tools",
         "toggle_explainer": "Enables the Testnet Mode shortcut (T) and adds a toggle to the home screen’s top-right menu."
@@ -127,8 +127,8 @@
         "tokens": "Tokens",
         "cant_connect": "Can't connect to this RPC endpoint",
         "rpc_not_responding": "The provided RPC endpoint is not responding",
-        "rainbow_default_rpc": "Rainbow",
-        "rainbow_default": "Rainbow"
+        "rainbow_default_rpc": "OrbyPlayground",
+        "rainbow_default": "OrbyPlayground"
       },
       "rpc_endpoints": "RPC Endpoints",
       "watch_asset": {
@@ -138,9 +138,9 @@
     "privacy_and_security": {
       "title": "Privacy & Security",
       "analytics": "Analytics",
-      "analytics_description": "Help Rainbow improve its products and services by allowing analytics of usage data. Collected data is not associated with you or your account.",
+      "analytics_description": "Help OrbyPlayground improve its products and services by allowing analytics of usage data. Collected data is not associated with you or your account.",
       "hide_asset_balances": "Hide asset balances",
-      "hide_asset_balances_description": "With this turned on Rainbow will obfuscate token balances accross the app.",
+      "hide_asset_balances_description": "With this turned on OrbyPlayground will obfuscate token balances across the app.",
       "auto_hide_balances_under_1": "Auto-hide balances under $1",
       "view_private_key": "View Private Key",
       "view_secret_recovery_phrase": "View Secret Recovery Phrase",
@@ -208,7 +208,7 @@
           "warning_1": "Never share your Private Key or enter it into any apps.",
           "warning_2": "Make sure nobody can view your screen when viewing your Private Key.",
           "warning_3": "Anyone with your Private Key can access your entire wallet.",
-          "warning_4": "Rainbow Support will never ask you for your Private Key.",
+          "warning_4": "OrbyPlayground Support will never ask you for your Private Key.",
           "show": "Show Private Key",
           "copied": "Private Key Copied"
         },
@@ -219,34 +219,34 @@
           "warning_1": "Never share your Secret Recovery Phrase or enter it into any apps.",
           "warning_2": "Make sure nobody can view your screen when viewing your Secret Recovery Phrase.",
           "warning_3": "Anyone with your Secret Recovery Phrase can access your entire wallet.",
-          "warning_4": "Rainbow Support will never ask you for your Secret Recovery Phrase.",
+          "warning_4": "OrbyPlayground Support will never ask you for your Secret Recovery Phrase.",
           "show": "Show Recovery Phrase",
           "copied": "Recovery Phrase Copied"
         },
         "wipe_wallets": {
-          "delete": "Reset Rainbow",
+          "delete": "Reset OrbyPlayground",
           "acknowlegement": "I have read and acknowledge the above info.",
-          "warning_one": "Resetting Rainbow will reset your password, & remove all wallets.",
-          "warning_two": "This will also erase all data & settings in Rainbow.",
+          "warning_one": "Resetting OrbyPlayground will reset your password, & remove all wallets.",
+          "warning_two": "This will also erase all data & settings in OrbyPlayground.",
           "warning_three": "Ensure your Secret Recovery Phrase is secure before proceeding. ",
           "warning_four": "Your assets & funds are accessible with the correct recovery information.",
-          "button_wipe": "Reset Rainbow",
+          "button_wipe": "Reset OrbyPlayground",
           "button_complete": "Complete Check Above",
-          "wipe_confirmation": "Reset Rainbow",
-          "wipe_confirmation_desc": "Are you sure you want to reset the Rainbow browser extension?",
+          "wipe_confirmation": "Reset OrbyPlayground",
+          "wipe_confirmation_desc": "Are you sure you want to reset the OrbyPlayground browser extension?",
           "wipe_confirmation_button": "Reset",
           "wipe_confirmation_cancel": "Cancel"
         },
         "wipe_wallet_group": {
           "delete": "Remove Wallet Group",
           "acknowlegement": "I have backed up my Secret Recovery Phrase.",
-          "warning_one": "Removing your Wallet Group will delete the Recovery Phrase from Rainbow.",
+          "warning_one": "Removing your Wallet Group will delete the Recovery Phrase from OrbyPlayground.",
           "warning_two": "Your assets & funds are recoverable with the correct wallet recovery information.",
           "warning_three": "Ensure your Secret Recovery Phrase is backed up before proceeding. ",
-          "button_wipe": "Reset Rainbow",
+          "button_wipe": "Reset OrbyPlayground",
           "button_complete": "Complete Check Above",
           "wipe_confirmation": "Remove Wallet Group",
-          "wipe_confirmation_desc": "Are you sure you want to remove your Secret Recovery Phrase from Rainbow?",
+          "wipe_confirmation_desc": "Are you sure you want to remove your Secret Recovery Phrase from OrbyPlayground?",
           "wipe_confirmation_button": "Remove",
           "wipe_confirmation_cancel": "Cancel"
         },
@@ -450,9 +450,9 @@
         "my_nfts": "My NFTs",
         "my_nfts_watched": "NFTs",
         "copy_address": "Copy Address",
-        "view_profile": "View Rainbow Profile",
+        "view_profile": "View OrbyPlayground Profile",
         "add_wallet": "Add a Wallet",
-        "lock": "Lock Rainbow",
+        "lock": "Lock OrbyPlayground",
         "connected_apps": "Connected Apps",
         "developer_tools": "Toggle Developer Tools",
         "developer_tools_disabled": "Enable Developer Tools",
@@ -784,7 +784,7 @@
         },
         "routing": {
           "title": "%{Action} Routing",
-          "description": "By default, Rainbow chooses the cheapest route possible for your %{action}. If you prefer to specifically use either 0x or 1inch, you can do that too.",
+          "description": "By default, OrbyPlayground chooses the cheapest route possible for your %{action}. If you prefer to specifically use either 0x or 1inch, you can do that too.",
           "read_more": {
             "open_text": "Still curious? ",
             "link_text": "Read more",
@@ -815,7 +815,7 @@
       "flashbots_on": "On",
       "minimum_received": "Minimum received",
       "via": "%{Actioning} via",
-      "included_fee": "Included Rainbow fee",
+      "included_fee": "Included OrbyPlayground fee",
       "use_flashbots": "Use Flashbots",
       "exchange_rate": "Exchange rate",
       "asset_contract": "%{symbol} contract",
@@ -914,23 +914,23 @@
   },
   "unlock": {
     "welcome_back": "Welcome back",
-    "enter_password": "Enter your password to unlock Rainbow.",
+    "enter_password": "Enter your password to unlock OrbyPlayground.",
     "unlock": "Unlock",
     "having_trouble": "Having trouble?",
     "contact": "Contact",
-    "rainbow_support": "Rainbow Support"
+    "rainbow_support": "OrbyPlayground Support"
   },
   "onboard_before_connect": {
     "before_connect": "Before you can connect",
-    "almost_done": "You’re almost done. Quickly finish setting up your wallet with Rainbow.",
+    "almost_done": "You’re almost done. Quickly finish setting up your wallet with OrbyPlayground.",
     "setup_wallet": "Set up your wallet"
   },
   "welcome": {
-    "title": "Rainbow",
+    "title": "OrbyPlayground",
     "subtitle": "Explore the new world of Ethereum",
     "create_wallet": "Create a new wallet",
     "import_wallet": "Import or connect a wallet",
-    "disclaimer_tos": "By proceeding, you agree to Rainbow’s",
+    "disclaimer_tos": "By proceeding, you agree to OrbyPlayground’s",
     "disclaimer_tos_link": "Terms of Use",
     "invalid_code": "Invalid code",
     "join": "Join"
@@ -987,9 +987,9 @@
   "import_wallet_selection": {
     "title": "Your wallets",
     "description": {
-      "zero": "Rainbow detected 1 wallet. You can add more at any time.",
-      "one": "Rainbow detected 1 wallet that have been used recently. You can add more at any time.",
-      "other": "Rainbow detected %{count} wallets that have been used recently. You can edit or add more at any time."
+      "zero": "OrbyPlayground detected 1 wallet. You can add more at any time.",
+      "one": "OrbyPlayground detected 1 wallet that have been used recently. You can add more at any time.",
+      "other": "OrbyPlayground detected %{count} wallets that have been used recently. You can edit or add more at any time."
     },
     "add_wallets": "Add wallets",
     "edit_wallets": "Edit wallets",
@@ -1013,7 +1013,7 @@
   },
   "import_wallet": {
     "title": "Import your wallet",
-    "description": "Enter your Secret Recovery Phrase or a Private Key from Rainbow or any Ethereum wallet.",
+    "description": "Enter your Secret Recovery Phrase or a Private Key from OrbyPlayground or any Ethereum wallet.",
     "too_many_words": "Too many words",
     "too_many_chars": "Too many characters",
     "add_another": "Add another",
@@ -1071,10 +1071,10 @@
     "home_header_right": {
       "settings": "Settings",
       "qr_code": "My QR Code",
-      "rainbow_profile": "Rainbow Profile",
+      "rainbow_profile": "OrbyPlayground Profile",
       "guides_and_support": "Guides & Support",
       "share_feedback": "Share Feedback",
-      "lock_rainbow": "Lock Rainbow",
+      "lock_rainbow": "Lock OrbyPlayground",
       "testnet_mode": "Testnet Mode",
       "testnet_mode_off": "Off",
       "testnet_mode_on": "On"
@@ -1126,8 +1126,8 @@
     "allow_to_add_asset": "wants to suggest a token",
     "wallet_info_title": "wants to connect to your wallet",
     "wallet_info_description": "Allow %{appName} to view your wallets address, balance, activity and request approval for transactions.",
-    "add_chain_info_description": "If you approve it, this network could be used within the Rainbow Browser Extension.",
-    "watch_asset_info_description": "If you approve it, this asset could be used within the Rainbow Browser Extension.",
+    "add_chain_info_description": "If you approve it, this network could be used within the OrbyPlayground Browser Extension.",
+    "watch_asset_info_description": "If you approve it, this asset could be used within the OrbyPlayground Browser Extension.",
     "wallet": "Wallet",
     "network": "Network",
     "switch_networks": "Switch Networks",
@@ -1617,14 +1617,14 @@
     }
   },
   "wallet_ready": {
-    "title": "Rainbow is ready to use",
-    "subtitle": "To access your wallet, just click Rainbow from the Extensions drop-down, or use the speedy keyboard shortcut",
-    "open": "Open Rainbow",
-    "get_started_with_rainbow": "Get started with Rainbow",
-    "get_started_with_rainbow_desc": "Welcome to Rainbow! We're so glad you're here. We’ve created this guide to help with the basics of Rainbow.",
+    "title": "OrbyPlayground is ready to use",
+    "subtitle": "To access your wallet, just click OrbyPlayground from the Extensions drop-down, or use the speedy keyboard shortcut",
+    "open": "Open OrbyPlayground",
+    "get_started_with_rainbow": "Get started with OrbyPlayground",
+    "get_started_with_rainbow_desc": "Welcome to OrbyPlayground! We're so glad you're here. We’ve created this guide to help with the basics of OrbyPlayground.",
     "discover_shortcuts": "Discover shortcuts",
     "discover_shortcuts_desc": "Looking to discover more shortcuts? Check out this helpful guide we’ve put together for you.",
-    "pin_rainbow_to_your_toolbar": "Pin Rainbow to your toolbar"
+    "pin_rainbow_to_your_toolbar": "Pin OrbyPlayground to your toolbar"
   },
   "wallet_header": {
     "buy": "Buy",
@@ -1640,9 +1640,9 @@
       "verified": "Verified",
       "on_other_networks": "On other networks",
       "bridge": "Bridge",
-      "popular": "Popular in Rainbow"
+      "popular": "Popular in OrbyPlayground"
     },
-    "verified_by_rainbow": "Verified by Rainbow"
+    "verified_by_rainbow": "Verified by OrbyPlayground"
   },
   "explainers": {
     "sidechains": {

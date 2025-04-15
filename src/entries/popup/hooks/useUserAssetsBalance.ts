@@ -1,4 +1,4 @@
-import { usePortfolioOverview } from '@orb-labs/orby-react';
+import { useGetPortfolioOverview } from '@orb-labs/orby-react';
 import { useCallback } from 'react';
 import { Address } from 'viem';
 
@@ -83,15 +83,15 @@ export function useUserAssetsBalance(args?: {
       : undefined;
 
   const { testnetMode } = useTestnetModeStore();
-  const { portfolioOverview } = usePortfolioOverview(testnetMode);
+  const { fungibleTokenOverview } = useGetPortfolioOverview(testnetMode);
 
   return {
     amount: totalAssetsBalance,
-    display: portfolioOverview
+    display: fungibleTokenOverview
       ? convertAmountToNativeDisplay(
           convertRawAmountToDecimalFormat(
-            portfolioOverview?.totalValueInFiat?.toRawAmount()?.toString(),
-            portfolioOverview?.totalValueInFiat?.currency.decimals,
+            fungibleTokenOverview?.totalValueInFiat?.toRawAmount()?.toString(),
+            fungibleTokenOverview?.totalValueInFiat?.currency.decimals,
           ),
           currentCurrency,
         )

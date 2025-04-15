@@ -61,6 +61,7 @@ const emptyArray: unknown[] = [];
 export function ImportWalletSelectionEdit({ onboarding = false }) {
   const navigate = useRainbowNavigate();
   const setCurrentAddress = useCurrentAddressStore.use.setCurrentAddress();
+  const setCurrentAddresses = useCurrentAddressStore.use.setCurrentAddresses();
 
   const { state } = useLocation();
   const accountsToImport: Address[] = state.accountsToImport || emptyArray;
@@ -89,6 +90,7 @@ export function ImportWalletSelectionEdit({ onboarding = false }) {
         (a) => !accountsIgnored.includes(a),
       );
       setCurrentAddress(importedAccounts[0]);
+      setCurrentAddresses(importedAccounts);
       if (onboarding) {
         navigate(ROUTES.CREATE_PASSWORD, {
           state: { backTo: ROUTES.IMPORT__SEED },

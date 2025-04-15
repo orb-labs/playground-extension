@@ -72,7 +72,7 @@ export const rainbowChainsStore = createStore<RainbowChainsState>(
     addAllCustomRPC: (rpcs: { rpcUrl: string; chainId: ChainId }[]) => {
       const rainbowChains = get().rainbowChains;
       rpcs.forEach(({ chainId, rpcUrl }) => {
-        const rainbowChain = rainbowChains[chainId] || {
+        let rainbowChain = rainbowChains[chainId] || {
           chains: [],
           activeRpcUrl: '',
         };
@@ -81,6 +81,9 @@ export const rainbowChainsStore = createStore<RainbowChainsState>(
         );
 
         if (!currentRpcs.includes(rpcUrl)) {
+          const chains = getInitialRainbowChains();
+          rainbowChain = chains[chainId];
+
           rainbowChain.chains.push({
             ...rainbowChain.chains[0],
             rpcUrls: {

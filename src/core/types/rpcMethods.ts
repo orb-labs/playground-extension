@@ -2,6 +2,8 @@ export enum rpcMethods {
   eth_chainId = 'eth_chainId',
   eth_accounts = 'eth_accounts',
   eth_sendTransaction = 'eth_sendTransaction',
+  signTransaction = 'signTransaction',
+  signAndSendTransaction = 'signAndSendTransaction',
   eth_signTransaction = 'eth_signTransaction',
   personal_sign = 'personal_sign',
   eth_signTypedData = 'eth_signTypedData',

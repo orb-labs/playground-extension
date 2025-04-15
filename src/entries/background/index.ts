@@ -26,6 +26,8 @@ const inpageMessenger = initializeMessenger({ connect: 'inpage' });
 unifyBalancesOnApps(
   '/',
   `${process.env.ORBY_BASE_URL}/${process.env.ORBY_PRIVATE_API_KEY}`,
+  true,
+  6_000_00,
 );
 
 handleInstallExtension();

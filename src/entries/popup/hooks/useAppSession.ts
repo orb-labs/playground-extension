@@ -1,4 +1,3 @@
-import { Account, AccountType, VMType } from '@orb-labs/orby-core';
 import { removeConnectedAppSession } from '@orb-labs/orby-core-mini';
 import { connectAppSession, useOrby } from '@orb-labs/orby-react';
 import * as React from 'react';
@@ -24,7 +23,7 @@ export function useAppSession({ host = '' }: { host?: string }) {
     getActiveSession,
   } = useAppSessionsStore();
 
-  const { baseMainnetClient } = useOrby();
+  const { baseMainnetClient, accountCluster } = useOrby();
 
   const activeSession = getActiveSession({ host });
   const clearAppHasInteractedWithNudgeSheet =
@@ -32,6 +31,10 @@ export function useAppSession({ host = '' }: { host?: string }) {
 
   const updateAppSessionAddress = React.useCallback(
     ({ address }: { address: Address }) => {
+      if (!accountCluster?.accountClusterId) {
+        return;
+      }
+
       storeUpdateActiveSession({ host, address });
       messenger.send(`accountsChanged:${host}`, address);
       messenger.send(
@@ -39,16 +42,19 @@ export function useAppSession({ host = '' }: { host?: string }) {
         appSessions[host].sessions[address],
       );
 
-      const account = new Account(
-        address?.toLowerCase(),
-        AccountType.EOA,
-        VMType.EVM,
-        undefined,
+      connectAppSession(
+        accountCluster?.accountClusterId,
+        host,
+        baseMainnetClient,
       );
-
-      connectAppSession([account], host, baseMainnetClient);
     },
-    [appSessions, baseMainnetClient, host, storeUpdateActiveSession],
+    [
+      appSessions,
+      baseMainnetClient,
+      host,
+      storeUpdateActiveSession,
+      accountCluster?.accountClusterId,
+    ],
   );
 
   const addSession = React.useCallback(
@@ -63,6 +69,10 @@ export function useAppSession({ host = '' }: { host?: string }) {
       chainId: number;
       url: string;
     }) => {
+      if (!accountCluster?.accountClusterId) {
+        return;
+      }
+
       const sessions = storeAddSession({ host, address, chainId, url });
       messenger.send(`accountsChanged:${host}`, address);
       if (Object.keys(sessions).length === 1) {
@@ -72,16 +82,13 @@ export function useAppSession({ host = '' }: { host?: string }) {
         });
       }
 
-      const account = new Account(
-        address?.toLowerCase(),
-        AccountType.EOA,
-        VMType.EVM,
-        undefined,
+      connectAppSession(
+        accountCluster?.accountClusterId,
+        host,
+        baseMainnetClient,
       );
-
-      connectAppSession([account], host, baseMainnetClient);
     },
-    [baseMainnetClient, storeAddSession],
+    [accountCluster?.accountClusterId, storeAddSession, baseMainnetClient],
   );
 
   const updateAppSessionChainId = React.useCallback(
@@ -118,15 +125,12 @@ export function useAppSession({ host = '' }: { host?: string }) {
   const disconnectSession = React.useCallback(
     ({ address, host }: { address: Address; host: string }) => {
       const newActiveSession = removeSession({ host, address });
-      if (newActiveSession) {
-        const account = new Account(
-          address?.toLowerCase(),
-          AccountType.EOA,
-          VMType.EVM,
-          undefined,
+      if (newActiveSession && accountCluster?.accountClusterId) {
+        connectAppSession(
+          accountCluster?.accountClusterId,
+          host,
+          baseMainnetClient,
         );
-
-        connectAppSession([account], host, baseMainnetClient);
         messenger.send(`accountsChanged:${host}`, newActiveSession?.address);
         messenger.send(`chainChanged:${host}`, newActiveSession?.chainId);
       } else {
@@ -135,7 +139,12 @@ export function useAppSession({ host = '' }: { host?: string }) {
         clearAppHasInteractedWithNudgeSheet({ host: host });
       }
     },
-    [baseMainnetClient, clearAppHasInteractedWithNudgeSheet, removeSession],
+    [
+      accountCluster?.accountClusterId,
+      baseMainnetClient,
+      clearAppHasInteractedWithNudgeSheet,
+      removeSession,
+    ],
   );
 
   const disconnectAppSession = React.useCallback(() => {

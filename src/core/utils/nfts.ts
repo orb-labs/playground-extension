@@ -1,3 +1,5 @@
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
+
 import { ChainName } from '../types/chains';
 import {
   PolygonAllowListDictionary,
@@ -193,7 +195,9 @@ export function filterSimpleHashNFTs(
 ): ValidatedSimpleHashNFT[] {
   return nfts
     .filter((nft) => {
-      const lowercasedContractAddress = nft.contract_address?.toLowerCase();
+      const lowercasedContractAddress = validateAndFormatAddress(
+        nft.contract_address,
+      );
       const network = getNetworkFromSimpleHashChain(nft.chain);
 
       const isMissingRequiredFields =
@@ -245,7 +249,9 @@ export function simpleHashNFTToUniqueAsset(
   nft: ValidatedSimpleHashNFT,
 ): UniqueAsset {
   const collection = nft.collection;
-  const lowercasedContractAddress = nft.contract_address?.toLowerCase();
+  const lowercasedContractAddress = validateAndFormatAddress(
+    nft.contract_address,
+  );
 
   const marketplace = nft.collection.marketplace_pages?.[0];
 
@@ -259,7 +265,8 @@ export function simpleHashNFTToUniqueAsset(
 
   const standard = nft.contract.type;
 
-  const isPoap = nft.contract_address.toLowerCase() === POAP_NFT_ADDRESS;
+  const isPoap =
+    validateAndFormatAddress(nft.contract_address) === POAP_NFT_ADDRESS;
   const poapDropId = !isPoap ? null : extractPoapDropId(nft.external_url || '');
 
   return {
@@ -340,7 +347,9 @@ export const getUniqueAssetImagePreviewURL = (asset: UniqueAsset) => {
 };
 
 export const isENS = (asset: UniqueAsset) => {
-  const lowercasedContractAddress = asset.asset_contract.address?.toLowerCase();
+  const lowercasedContractAddress = validateAndFormatAddress(
+    asset.asset_contract.address,
+  );
   return lowercasedContractAddress === ENS_NFT_CONTRACT_ADDRESS;
 };
 
