@@ -41,6 +41,15 @@ export const getSigningRequestDisplayDetails = (
           message,
           msgData: message,
           address: getAddress(address) as Address,
+          orbyCallData: '',
+        };
+      }
+      case 'signTransaction': {
+        const message = payload?.params?.[0] as string;
+        return {
+          message,
+          msgData: message,
+          orbyCallData: message,
         };
       }
       default: {
@@ -69,6 +78,7 @@ export const getSigningRequestDisplayDetails = (
               msgData: sanitizedMessageData,
               address: getAddress(address) as Address,
               typedData: true,
+              orbyCallData: JSON.stringify(sanitizedMessageData),
             };
           }
         }

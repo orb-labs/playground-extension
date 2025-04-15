@@ -79,7 +79,7 @@ describe('Watch wallet then add more and switch between them', () => {
     await confirmPasswordInput.sendKeys('test1234');
     await findElementByTestIdAndClick({ id: 'set-password-button', driver });
 
-    await findElementByText(driver, 'Rainbow is ready to use');
+    await findElementByText(driver, 'OrbyPlayground is ready to use');
   });
 
   it('should display watched account name', async () => {

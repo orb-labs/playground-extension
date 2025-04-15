@@ -33,6 +33,7 @@ export interface RainbowChainsState {
     chainId: ChainId;
   }) => void;
   removeCustomRPC: ({ rpcUrl }: { rpcUrl: string }) => void;
+  addAllCustomRPC: (rpcs: { rpcUrl: string; chainId: ChainId }[]) => boolean;
 }
 
 export const rainbowChainsStore = createStore<RainbowChainsState>(
@@ -66,6 +67,40 @@ export const rainbowChainsStore = createStore<RainbowChainsState>(
       } else {
         return false;
       }
+    },
+
+    addAllCustomRPC: (rpcs: { rpcUrl: string; chainId: ChainId }[]) => {
+      const rainbowChains = get().rainbowChains;
+      rpcs.forEach(({ chainId, rpcUrl }) => {
+        let rainbowChain = rainbowChains[chainId] || {
+          chains: [],
+          activeRpcUrl: '',
+        };
+        const currentRpcs = rainbowChain.chains.map(
+          (chain) => chain.rpcUrls.default.http[0],
+        );
+
+        if (!currentRpcs.includes(rpcUrl)) {
+          const chains = getInitialRainbowChains();
+          rainbowChain = chains[chainId];
+
+          rainbowChain.chains.push({
+            ...rainbowChain.chains[0],
+            rpcUrls: {
+              ...rainbowChain.chains[0].rpcUrls,
+              default: {
+                ...rainbowChain.chains[0].rpcUrls.default,
+                http: [rpcUrl],
+              },
+            },
+          } as Chain);
+          rainbowChain.activeRpcUrl = rpcUrl;
+          rainbowChains[chainId] = rainbowChain;
+        }
+      });
+
+      set({ rainbowChains });
+      return true;
     },
     updateCustomRPC: ({ chain }) => {
       const rainbowChains = get().rainbowChains;

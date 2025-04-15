@@ -115,6 +115,7 @@ export const deriveAccountsFromSecret = async (
         type: KeychainType.HdKeychain,
         mnemonic: secret,
       });
+      console.log('accounts', accounts);
       break;
     }
     case EthereumWalletType.privateKey: {
@@ -128,6 +129,8 @@ export const deriveAccountsFromSecret = async (
       accounts = await keychainManager.deriveAccounts({
         type: KeychainType.ReadOnlyKeychain,
         address: secret as Address,
+        evmAddress: '',
+        svmAddress: '',
       });
       break;
     }
@@ -188,6 +191,8 @@ export const importWallet = async (
       const keychain = await keychainManager.importKeychain({
         type: KeychainType.ReadOnlyKeychain,
         address: secret as Address,
+        evmAddress: '',
+        svmAddress: '',
       });
       const address = (await keychain.getAccounts())[0];
       return address;

@@ -1,4 +1,5 @@
 import { isValidAddress } from '@ethereumjs/util';
+import { CreateOperationsStatus, OperationSet } from '@orb-labs/orby-core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Address } from 'viem';
 
@@ -7,7 +8,6 @@ import { ParsedUserAsset } from '~/core/types/assets';
 import { ChainId, chainNameToIdMapping } from '~/core/types/chains';
 import { GasFeeLegacyParams, GasFeeParams } from '~/core/types/gas';
 import { UniqueAsset } from '~/core/types/nfts';
-import { getChain } from '~/core/utils/chains';
 import { toWei } from '~/core/utils/ethereum';
 import {
   add,
@@ -26,6 +26,8 @@ export const useSendValidations = ({
   selectedGas,
   toAddress,
   toAddressOrName,
+  operationSet,
+  isLoading,
 }: {
   asset?: ParsedUserAsset | null;
   assetAmount?: string;
@@ -33,6 +35,8 @@ export const useSendValidations = ({
   selectedGas?: GasFeeParams | GasFeeLegacyParams;
   toAddress?: Address;
   toAddressOrName?: string;
+  operationSet?: OperationSet;
+  isLoading?: boolean;
 }) => {
   const [toAddressIsSmartContract, setToAddressIsSmartContract] =
     useState(false);
@@ -120,58 +124,73 @@ export const useSendValidations = ({
   }, [asset?.chainId, nft, toAddress]);
 
   const buttonLabel = useMemo(() => {
+    if (isLoading) {
+      return i18n.t('send.button_label.processing');
+    }
+
     if (!isValidToAddress && toAddressOrName !== '')
       return i18n.t('send.button_label.enter_valid_address');
 
     if (!toAddress && !assetAmount && !nft) {
       return i18n.t('send.button_label.enter_address_and_amount');
     }
+
     if (!assetAmount && !nft) {
       return i18n.t('send.button_label.enter_amount');
     }
+
     if (toAddressOrName === '') {
       return i18n.t('send.button_label.enter_address');
     }
-    if (!enoughAssetBalance)
+
+    if (
+      operationSet?.status == CreateOperationsStatus.INSUFFICIENT_FUNDS_FOR_GAS
+    ) {
+      return i18n.t('send.button_label.insufficient_gas_funds');
+    }
+
+    if (operationSet?.status == CreateOperationsStatus.INSUFFICIENT_FUNDS) {
       return i18n.t('send.button_label.insufficient_asset', {
         symbol: asset?.symbol,
       });
-    if (!enoughNativeAssetForGas)
-      return i18n.t('send.button_label.insufficient_native_asset_for_gas', {
-        symbol: getChain({ chainId: asset?.chainId || ChainId.mainnet })
-          .nativeCurrency.symbol,
-      });
-    return i18n.t('send.button_label.review');
+    }
+
+    if (operationSet?.status == CreateOperationsStatus.NO_EXECUTION_PATH) {
+      return i18n.t('send.button_label.no_execution_path');
+    }
+
+    if (operationSet?.status == CreateOperationsStatus.SUCCESS) {
+      return i18n.t('send.button_label.review');
+    }
+
+    return i18n.t('send.button_label.processing');
   }, [
-    asset?.chainId,
-    asset?.symbol,
-    assetAmount,
-    enoughAssetBalance,
-    enoughNativeAssetForGas,
+    operationSet,
+    isLoading,
     isValidToAddress,
-    nft,
-    toAddress,
     toAddressOrName,
+    toAddress,
+    assetAmount,
+    nft,
+    asset?.symbol,
   ]);
 
-  const readyForReview = useMemo(
-    () =>
-      selectedGas?.gasFee?.amount &&
+  const readyForReview = useMemo(() => {
+    return (
+      operationSet?.status == CreateOperationsStatus.SUCCESS &&
       isValidToAddress &&
       toAddressOrName !== '' &&
-      (assetAmount || !!nft) &&
-      enoughAssetBalance &&
-      enoughNativeAssetForGas,
-    [
-      assetAmount,
-      enoughAssetBalance,
-      enoughNativeAssetForGas,
-      isValidToAddress,
-      nft,
-      selectedGas?.gasFee?.amount,
-      toAddressOrName,
-    ],
-  );
+      (!!assetAmount || !!nft) &&
+      !isLoading
+    );
+  }, [
+    assetAmount,
+    isValidToAddress,
+    nft,
+    toAddressOrName,
+    operationSet,
+    isLoading,
+  ]);
 
   return {
     enoughAssetBalance,

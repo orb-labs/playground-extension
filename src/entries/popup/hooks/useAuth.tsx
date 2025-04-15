@@ -14,6 +14,8 @@ import { SessionStorage } from '~/core/storage';
 
 import * as wallet from '../handlers/wallet';
 
+import { useConnectAppSessions } from './useConnectAppSessions';
+
 const AuthContext = createContext({
   status: 'NEW',
   updateStatus: () => Promise.resolve(),
@@ -104,6 +106,8 @@ const useSessionStatus = () => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { status, updateStatus, setStatus } = useSessionStatus();
+
+  useConnectAppSessions();
 
   useEffect(() => {
     const listener = async (changes: {

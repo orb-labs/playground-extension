@@ -1,4 +1,5 @@
 /* eslint sort-keys: "error"*/
+import { validateAndLowerCase } from '@orb-labs/orby-core';
 
 import { ROUTES } from '~/entries/popup/urls';
 
@@ -11,6 +12,6 @@ import { ROUTES } from '~/entries/popup/urls';
 export const screen = Object.fromEntries(
   Object.entries(ROUTES).map(([key, value]) => [
     value,
-    key.toLowerCase().replaceAll('__', '.'),
+    validateAndLowerCase(key)?.replaceAll('__', '.'),
   ]),
 );

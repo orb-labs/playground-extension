@@ -1,4 +1,3 @@
-import { RainbowProvider } from '@rainbow-me/provider';
 import { uuid4 } from '@sentry/utils';
 import _ from 'lodash';
 import { EIP1193Provider, announceProvider } from 'mipd';
@@ -12,6 +11,9 @@ import { toHex } from '~/core/utils/hex';
 
 import { injectNotificationIframe } from '../iframe';
 import { IN_DAPP_NOTIFICATION_STATUS } from '../iframe/notification';
+import { initialize } from '../wallet-standard/src';
+
+import { RainbowProvider } from './RainbowProvider';
 
 declare global {
   interface Window {
@@ -45,6 +47,7 @@ const rainbowProvider = new RainbowProvider({
     // here we don't need to listen to anything so we don't need these listeners
     if (isValidUrl(window.location.href)) {
       const host = getDappHost(window.location.href);
+      console.log('host', host);
       messenger?.reply(`accountsChanged:${host}`, async (address) => {
         emit('accountsChanged', [address]);
       });
@@ -72,7 +75,7 @@ if (shouldInjectProvider()) {
   announceProvider({
     info: {
       icon: RAINBOW_ICON_RAW_SVG,
-      name: 'Rainbow',
+      name: 'OrbyPlayground',
       rdns: 'me.rainbow',
       uuid: uuid4(),
     },
@@ -150,6 +153,8 @@ if (shouldInjectProvider()) {
       writable: false,
     },
   });
+
+  initialize(rainbowProvider);
 
   window.dispatchEvent(new Event('ethereum#initialized'));
 

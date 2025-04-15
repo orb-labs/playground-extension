@@ -18,7 +18,6 @@ import { Lens } from '~/design-system/components/Lens/Lens';
 import { rowTransparentAccentHighlight } from '~/design-system/styles/rowTransparentAccentHighlight.css';
 import { Asterisks } from '~/entries/popup/components/Asterisks/Asterisks';
 import { CoinIcon } from '~/entries/popup/components/CoinIcon/CoinIcon';
-import { useUserAsset } from '~/entries/popup/hooks/useUserAsset';
 
 import { RowHighlightWrapper } from './RowHighlightWrapper';
 
@@ -26,8 +25,7 @@ export type TokenToSellRowProps = {
   uniqueId: UniqueId;
 };
 
-export function TokenToSellRow({ uniqueId }: TokenToSellRowProps) {
-  const { data: asset } = useUserAsset(uniqueId);
+export function TokenToSellRow({ asset }) {
   const { hideAssetBalances } = useHideAssetBalancesStore();
   const { currentCurrency } = useCurrentCurrencyStore();
 
@@ -102,7 +100,7 @@ export function TokenToSellRow({ uniqueId }: TokenToSellRowProps) {
     <Lens
       borderRadius="12px"
       forceAvatarColor
-      testId={`sell-row-${uniqueId}-active-element-item`}
+      testId={`sell-row-${asset?.uniqueId}-active-element-item`}
     >
       <Box
         className={rowTransparentAccentHighlight}
@@ -115,7 +113,7 @@ export function TokenToSellRow({ uniqueId }: TokenToSellRowProps) {
               <Row>
                 <Columns alignVertical="center" space="8px">
                   <Column width="content">
-                    <CoinIcon asset={asset} />
+                    <CoinIcon asset={asset} isParent={true} />
                   </Column>
                   <Column>{leftColumn}</Column>
                   <Column width="content">{rightColumn}</Column>

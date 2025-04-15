@@ -1,6 +1,7 @@
 import { TransactionRequest } from '@ethersproject/abstract-provider';
+import { CreateOperationsStatus, OperationSet } from '@orb-labs/orby-core';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ReactNode, memo, useState } from 'react';
+import { ReactNode, memo, useMemo, useState } from 'react';
 import { Address } from 'viem';
 
 import { DAppStatus } from '~/core/graphql/__generated__/metadata';
@@ -34,6 +35,7 @@ import { ChainBadge } from '~/entries/popup/components/ChainBadge/ChainBadge';
 import { DappIcon } from '~/entries/popup/components/DappIcon/DappIcon';
 import { Tag } from '~/entries/popup/components/Tag';
 import { triggerToast } from '~/entries/popup/components/Toast/Toast';
+import { TransactionRoute } from '~/entries/popup/components/TransactionRoute';
 import { useAppSession } from '~/entries/popup/hooks/useAppSession';
 import { useRainbowNavigate } from '~/entries/popup/hooks/useRainbowNavigate';
 import { useUserNativeAsset } from '~/entries/popup/hooks/useUserNativeAsset';
@@ -44,9 +46,7 @@ import {
   MaliciousRequestWarning,
   getDappStatusBadge,
 } from '../DappScanStatus';
-import { SimulationOverview } from '../Simulation';
 import { CopyButton, TabContent, Tabs } from '../Tabs';
-import { useHasEnoughGas } from '../useHasEnoughGas';
 import {
   SimulationError,
   TransactionSimulation,
@@ -60,6 +60,7 @@ interface SendTransactionProps {
   }: {
     preventWindowClose?: boolean;
   }) => void;
+  operationSet?: OperationSet;
 }
 
 const InfoRow = ({
@@ -102,9 +103,6 @@ const InfoRow = ({
 
 const Overview = memo(function Overview({
   chainId,
-  simulation,
-  status,
-  error,
   metadata,
 }: {
   chainId: ChainId;
@@ -121,7 +119,7 @@ const Overview = memo(function Overview({
 
   return (
     <Stack space="16px" paddingTop="14px">
-      <Text size="12pt" weight="semibold" color="labelTertiary">
+      {/* <Text size="12pt" weight="semibold" color="labelTertiary">
         {i18n.t('simulation.title')}
       </Text>
 
@@ -131,7 +129,7 @@ const Overview = memo(function Overview({
         error={error}
       />
 
-      <Separator color="separatorTertiary" />
+      <Separator color="separatorTertiary" /> */}
 
       {chainId && chainName && (
         <InfoRow
@@ -293,12 +291,14 @@ function TransactionInfo({
   dappMetadata,
   expanded,
   onExpand,
+  operationSet,
 }: {
   request: TransactionRequest;
   dappUrl: string;
   dappMetadata: DappMetadata | null;
   expanded: boolean;
   onExpand: VoidFunction;
+  operationSet?: OperationSet;
 }) {
   const { activeSession } = useAppSession({ host: dappMetadata?.appHost });
   const chainId = activeSession?.chainId || ChainId.mainnet;
@@ -328,9 +328,14 @@ function TransactionInfo({
       <Tabs
         tabs={
           // we need a simulation to show the details tab
-          !simulation && status === 'error'
+          operationSet?.status != CreateOperationsStatus.SUCCESS
             ? [tabLabel('overview'), tabLabel('data')]
-            : [tabLabel('overview'), tabLabel('details'), tabLabel('data')]
+            : [
+                tabLabel('overview'),
+                'Route',
+                // tabLabel('details'),
+                tabLabel('data'),
+              ]
         }
         expanded={expanded}
         onExpand={onExpand}
@@ -343,6 +348,9 @@ function TransactionInfo({
             error={error}
             metadata={dappMetadata}
           />
+        </TabContent>
+        <TabContent value="Route">
+          {operationSet && <TransactionRoute operationSet={operationSet} />}
         </TabContent>
         {simulation && (
           <TabContent value={tabLabel('details')}>
@@ -565,6 +573,7 @@ function InsuficientGasFunds({
 export function SendTransactionInfo({
   request,
   onRejectRequest,
+  operationSet,
 }: SendTransactionProps) {
   const dappUrl = request?.meta?.sender?.url || '';
   const { data: dappMetadata } = useDappMetadata({ url: dappUrl });
@@ -577,7 +586,9 @@ export function SendTransactionInfo({
 
   const isScamDapp = dappMetadata?.status === DAppStatus.Scam;
 
-  const hasEnoughGas = useHasEnoughGas(activeSession);
+  const hasEnoughGas = useMemo(() => {
+    return true;
+  }, []);
 
   return (
     <Box
@@ -632,6 +643,7 @@ export function SendTransactionInfo({
           dappUrl={dappUrl}
           expanded={expanded}
           onExpand={() => setExpanded((e) => !e)}
+          operationSet={operationSet}
         />
       ) : (
         activeSession && (

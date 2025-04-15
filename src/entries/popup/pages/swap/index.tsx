@@ -1,10 +1,15 @@
+import { PopulatedTransaction } from '@ethersproject/contracts';
+import { OperationSet } from '@orb-labs/orby-core';
+import { useGetOperationsToExecuteTransaction } from '@orb-labs/orby-react';
+import { OrbyActions } from '@orb-labs/orby-viem-extension';
 import { CrosschainQuote, Quote, QuoteError } from '@rainbow-me/swaps';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Address } from 'viem';
+import { Address, Client, HttpTransport, PublicRpcSchema } from 'viem';
 
 import config from '~/core/firebase/remoteConfig';
 import { i18n } from '~/core/languages';
+import { populateSwap } from '~/core/raps/utils';
 import { shortcuts } from '~/core/references/shortcuts';
 import { useCurrentAddressStore, useGasStore } from '~/core/state';
 import { useFeatureFlagsStore } from '~/core/state/currentSettings/featureFlags';
@@ -19,6 +24,7 @@ import { ParsedSearchAsset, ParsedUserAsset } from '~/core/types/assets';
 import { ChainId } from '~/core/types/chains';
 import { SearchAsset } from '~/core/types/search';
 import { getQuoteServiceTime } from '~/core/utils/swaps';
+import { getProvider } from '~/core/wagmi/clientToProvider';
 import {
   Box,
   Button,
@@ -71,6 +77,7 @@ import {
   useTranslationContext,
 } from '../../hooks/useTranslationContext';
 import { getActiveElement, getInputIsFocused } from '../../utils/activeElement';
+import { GasTokenInput } from '../send';
 
 import { SwapReviewSheet } from './SwapReviewSheet/SwapReviewSheet';
 import { SwapSettings } from './SwapSettings/SwapSettings';
@@ -305,6 +312,8 @@ function SwapButton({
   showSwapReviewSheet,
   showExplainerSheet,
   hideExplainerSheet,
+  operationSet,
+  virtualNode,
 }: {
   quote: Quote | CrosschainQuote | QuoteError | undefined;
   assetToSell: ParsedSearchAsset | null;
@@ -312,21 +321,26 @@ function SwapButton({
   assetToBuy: ParsedSearchAsset | null;
   timeEstimate: SwapTimeEstimate | null;
   isLoadingQuote: boolean;
+  operationSet?: OperationSet | null;
   showSwapReviewSheet: () => void;
   showExplainerSheet: (p: ExplainerSheetProps) => void;
   hideExplainerSheet: () => void;
+  virtualNode?: Client<
+    HttpTransport,
+    undefined,
+    undefined,
+    PublicRpcSchema,
+    OrbyActions
+  >;
 }) {
   const { selectedGas } = useGasStore();
 
-  const {
-    buttonLabel: validationButtonLabel,
-    enoughAssetsForSwap,
-    readyForReview,
-  } = useSwapValidations({
-    assetToSell,
-    assetToSellValue,
-    selectedGas,
-  });
+  const { buttonLabel: validationButtonLabel, enoughAssetsForSwap } =
+    useSwapValidations({
+      assetToSell,
+      assetToSellValue,
+      selectedGas,
+    });
 
   const isDegenModeEnabled = useDegenMode((s) => s.isDegenModeEnabled);
 
@@ -348,10 +362,12 @@ function SwapButton({
     showExplainerSheet,
     hideExplainerSheet,
     showSwapReviewSheet() {
-      if (readyForReview) showSwapReviewSheet();
+      showSwapReviewSheet();
     },
     isDegenModeEnabled,
     timeEstimate,
+    operationSet,
+    virtualNode,
   });
 
   return (
@@ -392,6 +408,13 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   const [hasRequestedMaxValueAssetToSell, setHasRequestedMaxValueAssetToSell] =
     useState<boolean>(false);
   const { isFirefox } = useBrowser();
+
+  const [selectedGasToken, setSelectedGasToken] = useState<GasTokenInput>({
+    name: 'no gas abstraction',
+    standardizedTokenId: undefined, // this isn't used
+    isDefault: true,
+    // url is not used for default, instead we use the chain logo
+  });
 
   // translate based on the context, bridge or swap
   const translationContext = {
@@ -544,6 +567,50 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
         : slippage,
   });
 
+  const quoteData = useMemo(() => {
+    if (quote && !('error' in quote)) {
+      return quote as Quote | CrosschainQuote;
+    }
+    return undefined;
+  }, [quote]);
+
+  const [swapTransaction, setSwapTransaction] =
+    useState<PopulatedTransaction | null>(null);
+  useEffect(() => {
+    const fetchSwapTransaction = async () => {
+      if (!quoteData) {
+        return undefined;
+      }
+
+      const transaction = await populateSwap({
+        provider: getProvider({ chainId: quoteData?.chainId }),
+        quote: quoteData,
+      });
+
+      setSwapTransaction(transaction);
+    };
+
+    fetchSwapTransaction();
+  }, [quoteData]);
+
+  const gasToken = useMemo(() => {
+    return selectedGasToken?.standardizedTokenId
+      ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
+      : undefined;
+  }, [selectedGasToken]);
+
+  const { operationSet, virtualNode, aggregateFee, isLoading } =
+    useGetOperationsToExecuteTransaction(
+      swapTransaction?.from?.toLowerCase(),
+      quoteData?.chainId ? BigInt(quoteData?.chainId as number) : undefined,
+      swapTransaction?.to,
+      swapTransaction?.data as string,
+      swapTransaction?.value
+        ? BigInt(swapTransaction?.value.toString())
+        : undefined,
+      gasToken,
+    );
+
   const { assetToSellNativeDisplay, assetToBuyNativeDisplay } =
     useSwapNativeAmounts({
       assetToBuy,
@@ -563,9 +630,11 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
   });
 
   const showSwapReviewSheet = useCallback(() => {
-    setShowSwapReview(true);
-    setInReviewSheet(true);
-  }, []);
+    if (operationSet) {
+      setShowSwapReview(true);
+      setInReviewSheet(true);
+    }
+  }, [operationSet]);
 
   const timeEstimate = getSwapTimeEstimate(quote);
 
@@ -594,6 +663,13 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
     resetSwapValues,
   } = usePopupInstanceStore();
 
+  const setOutputChain = useCallback(
+    (chainId: ChainId) => {
+      setOutputChainId?.(chainId);
+    },
+    [setOutputChainId],
+  );
+
   const [didPopulateSavedTokens, setDidPopulateSavedTokens] = useState(false);
   const [didPopulateSavedInputValues, setDidPopulateSavedInputValues] =
     useState(false);
@@ -604,6 +680,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
       const selectedSearchAsset = assetsToSell.find(
         (asset) => asset?.uniqueId === selectedTokenId,
       );
+
       if (selectedSearchAsset) {
         selectAssetToSell(selectedSearchAsset);
         // clear selected token
@@ -738,6 +815,16 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
         flashbotsEnabled={flashbotsEnabledGlobally}
         hideSwapReview={hideSwapReviewSheet}
         assetToSellValue={assetToSellValue}
+        selectedGasToken={selectedGasToken}
+        setSelectedGasToken={(token) => {
+          if (token) {
+            setSelectedGasToken(token);
+          }
+        }}
+        aggregateFee={aggregateFee}
+        operationSet={operationSet}
+        // @ts-ignore
+        virtualNode={virtualNode}
       />
       <ExplainerSheet
         show={explainerSheetParams.show}
@@ -874,7 +961,7 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
                   dropdownClosed={assetToBuyDropdownClosed}
                   zIndex={1}
                   placeholder={t('swap.input_token_to_receive_placeholder')}
-                  setOutputChainId={setOutputChainId}
+                  setOutputChainId={setOutputChain}
                   outputChainId={outputChainId}
                   assetFilter={assetToBuyFilter}
                   setAssetFilter={setAssetToBuyFilter}
@@ -922,13 +1009,23 @@ export function Swap({ bridge = false }: { bridge?: boolean }) {
                         quoteServiceTime={getQuoteServiceTime({
                           quote: quote as CrosschainQuote,
                         })}
+                        selectedGasToken={selectedGasToken}
+                        setSelectedGasToken={(token) => {
+                          if (token) {
+                            setSelectedGasToken(token);
+                          }
+                        }}
+                        aggregateFee={aggregateFee}
                       />
                     </Row>
                     <Row>
                       <SwapButton
                         showSwapReviewSheet={showSwapReviewSheet}
                         quote={quote}
-                        isLoadingQuote={isLoadingQuote}
+                        operationSet={operationSet}
+                        // @ts-ignore
+                        virtualNode={virtualNode}
+                        isLoadingQuote={isLoadingQuote || isLoading}
                         assetToSell={assetToSell}
                         assetToSellValue={assetToSellValue}
                         assetToBuy={assetToBuy}

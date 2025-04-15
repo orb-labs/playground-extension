@@ -1,12 +1,11 @@
+import { usePortfolio } from '@orb-labs/orby-react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { selectUserAssetsList } from '~/core/resources/_selectors';
-import {
-  selectUserAssetsListByChainId,
-  selectorFilterByUserChains,
-} from '~/core/resources/_selectors/assets';
-import { useAssets, useUserAssets } from '~/core/resources/assets';
-import { useCurrentAddressStore, useCurrentCurrencyStore } from '~/core/state';
+import { selectUserAssetsListByChainId } from '~/core/resources/_selectors/assets';
+import { useAssets } from '~/core/resources/assets';
+import { useCurrentCurrencyStore } from '~/core/state';
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 import { usePopupInstanceStore } from '~/core/state/popupInstances';
 import { ParsedSearchAsset } from '~/core/types/assets';
 import { ChainId } from '~/core/types/chains';
@@ -16,13 +15,14 @@ import {
   isSameAssetInDiffChains,
   parseSearchAsset,
 } from '~/core/utils/assets';
+import { convertStandardizedBalanceToParsedUserAssets } from '~/core/utils/orb';
 
 import { SortMethod } from '../send/useSendAsset';
 import { useDebounce } from '../useDebounce';
 import usePrevious from '../usePrevious';
 import { useSearchCurrencyLists } from '../useSearchCurrencyLists';
 
-const sortBy = (by: SortMethod) => {
+export const sortBy = (by: SortMethod) => {
   switch (by) {
     case 'token':
       return selectUserAssetsList;
@@ -32,7 +32,6 @@ const sortBy = (by: SortMethod) => {
 };
 
 export const useSwapAssets = ({ bridge }: { bridge: boolean }) => {
-  const { currentAddress } = useCurrentAddressStore();
   const { currentCurrency } = useCurrentCurrencyStore();
 
   const [assetToSell, setAssetToSellState] = useState<
@@ -58,19 +57,15 @@ export const useSwapAssets = ({ bridge }: { bridge: boolean }) => {
 
   const { saveSwapTokenToBuy, saveSwapTokenToSell } = usePopupInstanceStore();
 
-  const { data: userAssets = [] } = useUserAssets(
-    {
-      address: currentAddress,
-      currency: currentCurrency,
-    },
-    {
-      select: (data) =>
-        selectorFilterByUserChains({
-          data,
-          selector: sortBy(sortMethod),
-        }),
-    },
-  );
+  const { testnetMode } = useTestnetModeStore();
+  const { portfolio } = usePortfolio(testnetMode);
+  const userAssets = useMemo(() => {
+    if (!portfolio) {
+      return [];
+    }
+
+    return convertStandardizedBalanceToParsedUserAssets(portfolio);
+  }, [portfolio]);
 
   const filteredAssetsToSell = useMemo(() => {
     return debouncedAssetToSellFilter
@@ -154,10 +149,24 @@ export const useSwapAssets = ({ bridge }: { bridge: boolean }) => {
 
   const setAssetToBuy = useCallback(
     (asset: ParsedSearchAsset | null) => {
+      if (assetToSell && asset && assetToSell?.chainId != asset?.chainId) {
+        const relatedAssets = (assetToSell as ParsedSearchAsset)?.relatedAssets;
+        const newAssetToSell = relatedAssets?.find(
+          (relatedAsset) => relatedAsset.chainId == asset?.chainId,
+        );
+
+        if (newAssetToSell) {
+          setAssetToSellState({
+            ...newAssetToSell,
+            relatedAssets,
+          } as ParsedSearchAsset);
+        }
+      }
+
       saveSwapTokenToBuy({ token: asset });
       setAssetToBuyState(asset);
     },
-    [saveSwapTokenToBuy],
+    [assetToSell, saveSwapTokenToBuy],
   );
 
   const setAssetToSell = useCallback(

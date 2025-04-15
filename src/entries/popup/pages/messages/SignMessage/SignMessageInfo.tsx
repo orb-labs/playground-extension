@@ -1,3 +1,4 @@
+import { OnchainOperation, OperationSet } from '@orb-labs/orby-core';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
 
@@ -12,6 +13,7 @@ import { getSigningRequestDisplayDetails } from '~/core/utils/signMessages';
 import { truncateString } from '~/core/utils/strings';
 import { Box, Inline, Separator, Stack, Symbol, Text } from '~/design-system';
 import { DappIcon } from '~/entries/popup/components/DappIcon/DappIcon';
+import { TransactionRoute } from '~/entries/popup/components/TransactionRoute';
 import { useAppSession } from '~/entries/popup/hooks/useAppSession';
 
 import { DappHostName, MaliciousRequestWarning } from '../DappScanStatus';
@@ -25,6 +27,8 @@ import {
 
 interface SignMessageProps {
   request: ProviderRequestPayload;
+  operations?: OnchainOperation[];
+  operationSet?: OperationSet;
 }
 
 function Overview({
@@ -88,7 +92,10 @@ function Overview({
   );
 }
 
-export const SignMessageInfo = ({ request }: SignMessageProps) => {
+export const SignMessageInfo = ({
+  request,
+  operationSet,
+}: SignMessageProps) => {
   const dappUrl = request?.meta?.sender?.url || '';
   const { currentCurrency } = useCurrentCurrencyStore();
   const { data: dappMetadata } = useDappMetadata({ url: dappUrl });
@@ -167,7 +174,7 @@ export const SignMessageInfo = ({ request }: SignMessageProps) => {
       </AnimatePresence>
 
       <Tabs
-        tabs={[tabLabel('overview')]}
+        tabs={[tabLabel('overview'), 'Route']}
         expanded={expanded}
         onExpand={() => setExpanded((e) => !e)}
       >
@@ -189,6 +196,9 @@ export const SignMessageInfo = ({ request }: SignMessageProps) => {
               })
             }
           />
+        </TabContent>
+        <TabContent value="Route">
+          {operationSet && <TransactionRoute operationSet={operationSet} />}
         </TabContent>
       </Tabs>
 

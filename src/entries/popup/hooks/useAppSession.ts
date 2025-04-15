@@ -1,3 +1,5 @@
+import { removeConnectedAppSession } from '@orb-labs/orby-core-mini';
+import { connectAppSession, useOrby } from '@orb-labs/orby-react';
 import * as React from 'react';
 import { Address } from 'viem';
 
@@ -21,20 +23,38 @@ export function useAppSession({ host = '' }: { host?: string }) {
     getActiveSession,
   } = useAppSessionsStore();
 
+  const { baseMainnetClient, accountCluster } = useOrby();
+
   const activeSession = getActiveSession({ host });
   const clearAppHasInteractedWithNudgeSheet =
     useAppConnectionWalletSwitcherStore.use.clearAppHasInteractedWithNudgeSheet();
 
   const updateAppSessionAddress = React.useCallback(
     ({ address }: { address: Address }) => {
+      if (!accountCluster?.accountClusterId) {
+        return;
+      }
+
       storeUpdateActiveSession({ host, address });
       messenger.send(`accountsChanged:${host}`, address);
       messenger.send(
         `chainChanged:${host}`,
         appSessions[host].sessions[address],
       );
+
+      connectAppSession(
+        accountCluster?.accountClusterId,
+        host,
+        baseMainnetClient,
+      );
     },
-    [appSessions, host, storeUpdateActiveSession],
+    [
+      appSessions,
+      baseMainnetClient,
+      host,
+      storeUpdateActiveSession,
+      accountCluster?.accountClusterId,
+    ],
   );
 
   const addSession = React.useCallback(
@@ -49,6 +69,10 @@ export function useAppSession({ host = '' }: { host?: string }) {
       chainId: number;
       url: string;
     }) => {
+      if (!accountCluster?.accountClusterId) {
+        return;
+      }
+
       const sessions = storeAddSession({ host, address, chainId, url });
       messenger.send(`accountsChanged:${host}`, address);
       if (Object.keys(sessions).length === 1) {
@@ -57,8 +81,14 @@ export function useAppSession({ host = '' }: { host?: string }) {
           chainId: toHex(String(chainId)),
         });
       }
+
+      connectAppSession(
+        accountCluster?.accountClusterId,
+        host,
+        baseMainnetClient,
+      );
     },
-    [storeAddSession],
+    [accountCluster?.accountClusterId, storeAddSession, baseMainnetClient],
   );
 
   const updateAppSessionChainId = React.useCallback(
@@ -95,25 +125,33 @@ export function useAppSession({ host = '' }: { host?: string }) {
   const disconnectSession = React.useCallback(
     ({ address, host }: { address: Address; host: string }) => {
       const newActiveSession = removeSession({ host, address });
-      if (newActiveSession) {
+      if (newActiveSession && accountCluster?.accountClusterId) {
+        connectAppSession(
+          accountCluster?.accountClusterId,
+          host,
+          baseMainnetClient,
+        );
         messenger.send(`accountsChanged:${host}`, newActiveSession?.address);
         messenger.send(`chainChanged:${host}`, newActiveSession?.chainId);
       } else {
+        removeConnectedAppSession(host);
         messenger.send(`disconnect:${host}`, []);
-        clearAppHasInteractedWithNudgeSheet({
-          host: host,
-        });
+        clearAppHasInteractedWithNudgeSheet({ host: host });
       }
     },
-    [clearAppHasInteractedWithNudgeSheet, removeSession],
+    [
+      accountCluster?.accountClusterId,
+      baseMainnetClient,
+      clearAppHasInteractedWithNudgeSheet,
+      removeSession,
+    ],
   );
 
   const disconnectAppSession = React.useCallback(() => {
     messenger.send(`disconnect:${host}`, null);
     removeAppSession({ host });
-    clearAppHasInteractedWithNudgeSheet({
-      host: host,
-    });
+    clearAppHasInteractedWithNudgeSheet({ host: host });
+    removeConnectedAppSession(host);
   }, [host, removeAppSession, clearAppHasInteractedWithNudgeSheet]);
 
   return {

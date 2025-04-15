@@ -115,6 +115,8 @@ export const ApproveAppRequest = () => {
     [handleRequestAction, pendingRequest?.id],
   );
 
+  console.log('[approveRequest] pendingRequest', pendingRequest);
+
   switch (pendingRequest?.method) {
     case 'wallet_addEthereumChain':
       return (
@@ -155,6 +157,7 @@ export const ApproveAppRequest = () => {
           />
         </ApproveAppRequestWrapper>
       );
+    case 'signTransaction':
     case 'personal_sign':
     case 'eth_signTypedData':
     case 'eth_signTypedData_v3':
@@ -171,6 +174,7 @@ export const ApproveAppRequest = () => {
           />
         </ApproveAppRequestWrapper>
       );
+    case 'signAndSendTransaction':
     case 'eth_sendTransaction':
       return (
         <ApproveAppRequestWrapper

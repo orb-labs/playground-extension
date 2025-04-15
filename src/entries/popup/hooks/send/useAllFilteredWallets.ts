@@ -1,3 +1,4 @@
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import { useMemo } from 'react';
 import { Address } from 'viem';
 
@@ -16,7 +17,7 @@ const filterWallets = (
   return accounts.filter(
     ({ address, name, ensName, walletName }) =>
       ensName?.toLowerCase().includes(filter) ||
-      address?.toLowerCase().includes(filter) ||
+      validateAndFormatAddress(address).includes(filter) ||
       name?.toLowerCase().includes(filter) ||
       walletName?.toLowerCase().includes(filter),
   );

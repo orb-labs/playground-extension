@@ -214,7 +214,7 @@ function ActionButtonsSection() {
             tooltipText={i18n.t('tooltip.copy_address')}
           />
 
-          <ActionButton
+          {/* <ActionButton
             symbol="arrow.triangle.swap"
             text={i18n.t('wallet_header.swap')}
             tabIndex={tabIndexes.WALLET_HEADER_SWAP_BUTTON}
@@ -232,7 +232,7 @@ function ActionButtonsSection() {
             }}
             tooltipHint={shortcuts.home.GO_TO_SWAP.display}
             tooltipText={i18n.t('tooltip.swap')}
-          />
+          /> */}
 
           <ActionButton
             symbol="paperplane.fill"
@@ -250,7 +250,7 @@ function ActionButtonsSection() {
             }}
           />
 
-          <ActionButton
+          {/* <ActionButton
             symbol="creditcard.fill"
             testId="header-link-buy"
             text={i18n.t('wallet_header.buy')}
@@ -258,7 +258,7 @@ function ActionButtonsSection() {
             onClick={() => navigate(ROUTES.BUY)}
             tooltipHint={shortcuts.home.BUY.display}
             tooltipText={i18n.t('tooltip.buy_crypto')}
-          />
+          /> */}
         </Inline>
       )}
     </Box>

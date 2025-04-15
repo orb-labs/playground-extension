@@ -2,6 +2,7 @@ import { Block, Provider } from '@ethersproject/abstract-provider';
 import { MaxUint256 } from '@ethersproject/constants';
 import { Contract, PopulatedTransaction } from '@ethersproject/contracts';
 import { StaticJsonRpcProvider } from '@ethersproject/providers';
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import {
   ALLOWS_PERMIT,
   CrosschainQuote,
@@ -209,7 +210,7 @@ export const getDefaultGasLimitForTrade = (
 ): string => {
   const allowsPermit =
     chainId === mainnet.id &&
-    ALLOWS_PERMIT[quote?.sellTokenAddress?.toLowerCase()];
+    ALLOWS_PERMIT[validateAndFormatAddress(quote?.sellTokenAddress)];
 
   let defaultGasLimit = quote?.defaultGasLimit;
 

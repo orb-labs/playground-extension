@@ -17,7 +17,11 @@ screenshots/
 anvil*.log
 
 rainbowbx.xpi
+orbyplaygroundbx.xpi
+orbyplaygroundbx.zip
 
 .idea/**
 
 static/data
+
+.tool-versions

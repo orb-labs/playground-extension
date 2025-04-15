@@ -1,3 +1,4 @@
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Address, Chain } from 'viem';
 
@@ -89,7 +90,9 @@ async function nftCollectionsQueryFunction({
       if (shouldPrefilterPolygonContract) {
         const polygonContractAddress =
           polygonContractAddressString.split('.')[1];
-        return polygonAllowList[polygonContractAddress.toLowerCase()];
+        return polygonAllowList[
+          validateAndFormatAddress(polygonContractAddress)
+        ];
       } else {
         return true;
       }

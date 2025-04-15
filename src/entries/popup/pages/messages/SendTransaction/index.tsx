@@ -1,7 +1,16 @@
 import { TransactionRequest } from '@ethersproject/abstract-provider';
-import { getAddress } from '@ethersproject/address';
+import {
+  OperationStatus,
+  OperationStatusType,
+  validateAndFormatAddress,
+} from '@orb-labs/orby-core';
+import {
+  useGetOperationsToExecuteTransaction,
+  useOrby,
+} from '@orb-labs/orby-react';
+import _ from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Address } from 'viem';
+import { Address, Hex, PublicClient } from 'viem';
 
 import { analytics } from '~/analytics';
 import { event } from '~/analytics/event';
@@ -9,15 +18,14 @@ import config from '~/core/firebase/remoteConfig';
 import { i18n } from '~/core/languages';
 import { chainsNativeAsset } from '~/core/references/chains';
 import { useDappMetadata } from '~/core/resources/metadata/dapp';
-import { useFlashbotsEnabledStore, useGasStore } from '~/core/state';
+import { useFlashbotsEnabledStore } from '~/core/state';
 import { useConnectedToHardhatStore } from '~/core/state/currentSettings/connectedToHardhat';
 import { useFeatureFlagsStore } from '~/core/state/currentSettings/featureFlags';
 import { ProviderRequestPayload } from '~/core/transports/providerRequestTransport';
 import { ChainId } from '~/core/types/chains';
-import { NewTransaction, TxHash } from '~/core/types/transactions';
 import { chainIdToUse } from '~/core/utils/chains';
 import { POPUP_DIMENSIONS } from '~/core/utils/dimensions';
-import { addNewTransaction } from '~/core/utils/transactions';
+import { signOperation } from '~/core/utils/orb';
 import { Bleed, Box, Separator, Stack } from '~/design-system';
 import { triggerAlert } from '~/design-system/components/Alert/Alert';
 import { TransactionFee } from '~/entries/popup/components/TransactionFee/TransactionFee';
@@ -28,6 +36,7 @@ import { useWallets } from '~/entries/popup/hooks/useWallets';
 import { RainbowError, logger } from '~/logger';
 
 import * as wallet from '../../../handlers/wallet';
+import { GasTokenInput } from '../../send';
 import { AccountSigningWith } from '../AccountSigningWith';
 
 import { SendTransactionActions } from './SendTransactionActions';
@@ -56,75 +65,143 @@ export function SendTransaction({
     url: request?.meta?.sender?.url,
   });
   const { activeSession } = useAppSession({ host: dappMetadata?.appHost });
-  const selectedGas = useGasStore.use.selectedGas();
   const selectedWallet = activeSession?.address || '';
   const { connectedToHardhat, connectedToHardhatOp } =
     useConnectedToHardhatStore();
-  const { asset, selectAssetAddressAndChain } = useSendAsset();
+  const { selectAssetAddressAndChain } = useSendAsset();
   const { watchedWallets } = useWallets();
   const { featureFlags } = useFeatureFlagsStore();
 
+  const [selectedGasToken, setSelectedGasToken] = useState<GasTokenInput>({
+    name: 'no gas abstraction',
+    standardizedTokenId: undefined,
+    isDefault: true,
+  });
+
   const { flashbotsEnabled } = useFlashbotsEnabledStore();
-  const flashbotsEnabledGlobally =
-    config.flashbots_enabled &&
-    flashbotsEnabled &&
-    activeSession?.chainId === ChainId.mainnet;
+  const flashbotsEnabledGlobally = useMemo(() => {
+    return (
+      config.flashbots_enabled &&
+      flashbotsEnabled &&
+      activeSession?.chainId === ChainId.mainnet
+    );
+  }, [activeSession?.chainId, flashbotsEnabled]);
+
+  const txRequest = request?.params?.[0] as TransactionRequest;
+
+  const { accountCluster, baseMainnetClient, getCachedVirtualNode } = useOrby();
+
+  const gasToken = useMemo(() => {
+    return selectedGasToken?.standardizedTokenId
+      ? { standardizedTokenId: selectedGasToken.standardizedTokenId }
+      : undefined;
+  }, [selectedGasToken]);
+
+  const { operationSet, virtualNode, aggregateFee, isLoading } =
+    useGetOperationsToExecuteTransaction(
+      validateAndFormatAddress(activeSession?.address),
+      activeSession?.chainId ? BigInt(activeSession.chainId) : undefined,
+      txRequest.to as string,
+      txRequest.data as string,
+      txRequest.value ? BigInt(txRequest.value.toString()) : undefined,
+      gasToken,
+    );
+
+  const operationStatusesUpdated = useCallback(
+    async (
+      statusSummary: OperationStatusType,
+      finalTransactionStatus?: OperationStatus,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      statuses?: OperationStatus[],
+    ) => {
+      if (statusSummary == OperationStatusType.WAITING_PRECONDITION) {
+        return;
+      }
+
+      if (
+        activeSession &&
+        [OperationStatusType.FAILED, OperationStatusType.NOT_FOUND].includes(
+          statusSummary,
+        )
+      ) {
+        approveRequest(finalTransactionStatus?.hash);
+        setWaitingForDevice(false);
+        setLoading(false);
+      } else if (
+        activeSession &&
+        [OperationStatusType.SUCCESSFUL, OperationStatusType.PENDING].includes(
+          statusSummary,
+        )
+      ) {
+        const virtualNode = getCachedVirtualNode(
+          activeSession.address,
+          BigInt(activeSession.chainId),
+        ) as unknown as PublicClient;
+
+        let transactionHash = finalTransactionStatus?.hash;
+        if (request.method != 'signAndSendTransaction') {
+          const receipt = await virtualNode?.waitForTransactionReceipt({
+            hash: finalTransactionStatus?.hash as Hex,
+          });
+          transactionHash = receipt?.transactionHash;
+        }
+
+        approveRequest(transactionHash);
+        setWaitingForDevice(false);
+        setLoading(false);
+      }
+    },
+    [activeSession, approveRequest, getCachedVirtualNode, request.method],
+  );
 
   const onAcceptRequest = useCallback(async () => {
     if (!config.tx_requests_enabled) return;
     if (!selectedWallet || !activeSession) return;
     setLoading(true);
     try {
-      const txRequest = request?.params?.[0] as TransactionRequest;
       const { type } = await wallet.getWallet(selectedWallet);
 
       // Change the label while we wait for confirmation
       if (type === 'HardwareWalletKeychain') {
         setWaitingForDevice(true);
       }
-      const activeChainId = chainIdToUse(
-        connectedToHardhat,
-        connectedToHardhatOp,
-        activeSession.chainId,
-      );
-      const txData = {
-        from: selectedWallet,
-        to: txRequest?.to ? (getAddress(txRequest?.to) as Address) : undefined,
-        value: txRequest.value || '0x0',
-        data: txRequest.data ?? '0x',
-        chainId: activeChainId,
-      };
-      const result = await wallet.sendTransaction(txData);
-      if (result) {
-        const transaction = {
-          asset: asset || undefined,
-          value: result.value.toString(),
-          data: result.data,
-          flashbots: flashbotsEnabledGlobally,
-          from: txData.from,
-          to: txData.to,
-          hash: result.hash as TxHash,
-          chainId: txData.chainId,
-          nonce: result.nonce,
-          status: 'pending',
-          type: 'send',
-          ...selectedGas.transactionGasParams,
-        } satisfies NewTransaction;
 
-        addNewTransaction({
-          address: txData.from,
-          chainId: txData.chainId,
-          transaction,
-        });
-        approveRequest(result.hash);
+      if (!accountCluster) {
+        approveRequest(null);
         setWaitingForDevice(false);
-
-        analytics.track(event.dappPromptSendTransactionApproved, {
-          chainId: txData.chainId,
-          dappURL: dappMetadata?.appHost || '',
-          dappName: dappMetadata?.appName,
-        });
+        setLoading(false);
+        return;
+      } else if (!accountCluster || !virtualNode || !operationSet) {
+        approveRequest(null);
+        setWaitingForDevice(false);
+        setLoading(false);
+        return;
       }
+
+      const { operationResponses, success } =
+        await virtualNode.sendOperationSet(
+          accountCluster,
+          operationSet,
+          signOperation,
+          undefined,
+          signOperation,
+        );
+
+      if (!success) {
+        approveRequest(null);
+        setWaitingForDevice(false);
+        setLoading(false);
+        return;
+      }
+
+      const ids = operationResponses
+        ?.map((op) => op.id)
+        .filter((id) => !_.isUndefined(id));
+
+      baseMainnetClient?.subscribeToOperationStatuses(
+        ids,
+        operationStatusesUpdated,
+      );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       showLedgerDisconnectedAlertIfNeeded(e);
@@ -139,22 +216,18 @@ export function SendTransaction({
         text: i18n.t('errors.sending_transaction'),
         description: extractedError,
       });
-    } finally {
       setWaitingForDevice(false);
       setLoading(false);
     }
   }, [
     selectedWallet,
     activeSession,
-    request?.params,
-    connectedToHardhat,
-    connectedToHardhatOp,
-    asset,
-    flashbotsEnabledGlobally,
-    selectedGas.transactionGasParams,
+    accountCluster,
+    virtualNode,
+    operationSet,
+    baseMainnetClient,
+    operationStatusesUpdated,
     approveRequest,
-    dappMetadata?.appHost,
-    dappMetadata?.appName,
   ]);
 
   const onRejectRequest = useCallback(() => {
@@ -172,6 +245,15 @@ export function SendTransaction({
     dappMetadata?.appHost,
     dappMetadata?.appName,
   ]);
+
+  const selectGasToken = useCallback(
+    (gasToken?: GasTokenInput) => {
+      if (gasToken) {
+        setSelectedGasToken(gasToken);
+      }
+    },
+    [setSelectedGasToken],
+  );
 
   const isWatchingWallet = useMemo(() => {
     const watchedAddresses = watchedWallets?.map(({ address }) => address);
@@ -206,13 +288,25 @@ export function SendTransaction({
     connectedToHardhatOp,
   ]);
 
+  const transactionRequest = useMemo(() => {
+    return request?.params?.[0] as TransactionRequest;
+  }, [request?.params]);
+
+  const chainId = useMemo(() => {
+    return activeSession?.chainId || ChainId.mainnet;
+  }, [activeSession?.chainId]);
+
   return (
     <Box
       display="flex"
       flexDirection="column"
       style={{ height: POPUP_DIMENSIONS.height, overflow: 'hidden' }}
     >
-      <SendTransactionInfo request={request} onRejectRequest={rejectRequest} />
+      <SendTransactionInfo
+        request={request}
+        onRejectRequest={rejectRequest}
+        operationSet={operationSet}
+      />
       <Stack space="20px" padding="20px">
         <Bleed vertical="4px">
           <AccountSigningWith session={activeSession} />
@@ -226,19 +320,22 @@ export function SendTransaction({
             transactionSpeedClicked:
               event.dappPromptSendTransactionSpeedClicked,
           }}
-          chainId={activeSession?.chainId || ChainId.mainnet}
+          chainId={chainId}
           address={activeSession?.address}
-          transactionRequest={request?.params?.[0] as TransactionRequest}
-          plainTriggerBorder
+          transactionRequest={transactionRequest}
           flashbotsEnabled={flashbotsEnabledGlobally}
+          selectedGasToken={selectedGasToken}
+          setSelectedGasToken={selectGasToken}
+          aggregateFee={aggregateFee}
         />
         <SendTransactionActions
           session={activeSession}
           waitingForDevice={waitingForDevice}
           onAcceptRequest={onAcceptRequest}
           onRejectRequest={onRejectRequest}
-          loading={loading}
+          loading={loading || isLoading}
           dappStatus={dappMetadata?.status}
+          operationSet={operationSet}
         />
       </Stack>
     </Box>

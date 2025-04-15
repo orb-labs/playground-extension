@@ -1,3 +1,4 @@
+import { VMType, getVirtualEnvironment } from '@orb-labs/orby-core';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Chain } from 'viem';
 
@@ -55,6 +56,7 @@ export const SwitchNetworkMenuSelector = ({
   onNetworkSelect,
   onShortcutPress,
   onlySwapSupportedNetworks = false,
+  vmType,
 }: {
   selectedValue?: string;
   highlightAccentColor?: boolean;
@@ -64,6 +66,7 @@ export const SwitchNetworkMenuSelector = ({
   onNetworkSelect?: (event?: Event) => void;
   onShortcutPress: (chainId: string) => void;
   onlySwapSupportedNetworks?: boolean;
+  vmType?: VMType;
 }) => {
   const { trackShortcut } = useKeyboardAnalytics();
   const { chains: userChains } = useUserChains();
@@ -72,10 +75,11 @@ export const SwitchNetworkMenuSelector = ({
     () =>
       userChains.filter((chain) =>
         onlySwapSupportedNetworks
-          ? supportedSwapChainIds.includes(chain.id)
-          : true,
+          ? supportedSwapChainIds.includes(chain.id) &&
+            (!vmType || vmType == getVirtualEnvironment(BigInt(chain.id)))
+          : !vmType || vmType == getVirtualEnvironment(BigInt(chain.id)),
       ),
-    [onlySwapSupportedNetworks, userChains],
+    [onlySwapSupportedNetworks, userChains, vmType],
   );
 
   const { MenuRadioItem } = useMemo(() => {
@@ -235,6 +239,7 @@ interface SwitchNetworkMenuProps {
   marginRight?: Space;
   onOpenChange?: (open: boolean) => void;
   onlySwapSupportedNetworks?: boolean;
+  vmType?: VMType;
 }
 
 export const SwitchNetworkMenu = ({
@@ -247,6 +252,7 @@ export const SwitchNetworkMenu = ({
   marginRight,
   onOpenChange,
   onlySwapSupportedNetworks,
+  vmType,
 }: SwitchNetworkMenuProps) => {
   const triggerRef = useRef<HTMLDivElement>(null);
   const { chains } = useUserChains();
@@ -329,6 +335,7 @@ export const SwitchNetworkMenu = ({
             showDisconnect={!!onDisconnect}
             disconnect={onDisconnect}
             onlySwapSupportedNetworks={onlySwapSupportedNetworks}
+            vmType={vmType}
           />
         </MenuRadioGroup>
       </MenuContent>

@@ -1,5 +1,14 @@
+import {
+  OperationSet,
+  OperationStatus,
+  OperationStatusType,
+  OperationType,
+} from '@orb-labs/orby-core';
+import { useOrby } from '@orb-labs/orby-react';
+import { OrbyActions } from '@orb-labs/orby-viem-extension';
 import { CrosschainQuote, Quote, QuoteError } from '@rainbow-me/swaps';
 import { motion } from 'framer-motion';
+import _ from 'lodash';
 import React, {
   useCallback,
   useEffect,
@@ -7,7 +16,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Address } from 'viem';
+import { Address, Client, HttpTransport, PublicRpcSchema } from 'viem';
 
 import { i18n } from '~/core/languages';
 import { useGasStore } from '~/core/state';
@@ -16,6 +25,7 @@ import { ChainId } from '~/core/types/chains';
 import { KeychainType } from '~/core/types/keychainTypes';
 import { truncateAddress } from '~/core/utils/address';
 import { processExchangeRateArray } from '~/core/utils/numbers';
+import { signOperation } from '~/core/utils/orb';
 import { isUnwrapEth, isWrapEth } from '~/core/utils/swaps';
 import {
   Bleed,
@@ -54,6 +64,7 @@ import { useUserAsset } from '~/entries/popup/hooks/useUserAsset';
 import { ROUTES } from '~/entries/popup/urls';
 import { zIndexes } from '~/entries/popup/utils/zIndexes';
 
+import { GasTokenInput } from '../../send';
 import { onSwap } from '../onSwap';
 
 import { SwapAssetCard } from './SwapAssetCard';
@@ -163,8 +174,19 @@ export type SwapReviewSheetProps = {
   assetToSellValue?: string;
   assetToBuy?: ParsedSearchAsset | null;
   quote?: Quote | CrosschainQuote | QuoteError;
+  operationSet?: OperationSet | null;
+  virtualNode: Client<
+    HttpTransport,
+    undefined,
+    undefined,
+    PublicRpcSchema,
+    OrbyActions
+  >;
   flashbotsEnabled: boolean;
   hideSwapReview: () => void;
+  selectedGasToken: GasTokenInput;
+  setSelectedGasToken: (gasToken?: GasTokenInput) => void;
+  aggregateFee: string;
 };
 
 export const SwapReviewSheet = ({
@@ -175,6 +197,11 @@ export const SwapReviewSheet = ({
   quote,
   flashbotsEnabled,
   hideSwapReview,
+  operationSet,
+  virtualNode,
+  selectedGasToken,
+  setSelectedGasToken,
+  aggregateFee,
 }: SwapReviewSheetProps) => {
   if (!quote || !assetToBuy || !assetToSell || (quote as QuoteError)?.error)
     return null;
@@ -187,6 +214,11 @@ export const SwapReviewSheet = ({
       quote={quote as Quote | CrosschainQuote}
       flashbotsEnabled={flashbotsEnabled}
       hideSwapReview={hideSwapReview}
+      selectedGasToken={selectedGasToken}
+      setSelectedGasToken={setSelectedGasToken}
+      aggregateFee={aggregateFee}
+      operationSet={operationSet}
+      virtualNode={virtualNode}
     />
   );
 };
@@ -199,6 +231,17 @@ type SwapReviewSheetWithQuoteProps = {
   quote: Quote | CrosschainQuote;
   flashbotsEnabled: boolean;
   hideSwapReview: () => void;
+  operationSet?: OperationSet | null;
+  virtualNode?: Client<
+    HttpTransport,
+    undefined,
+    undefined,
+    PublicRpcSchema,
+    OrbyActions
+  >;
+  selectedGasToken: GasTokenInput;
+  setSelectedGasToken: (gasToken?: GasTokenInput) => void;
+  aggregateFee: string;
 };
 
 const SwapReviewSheetWithQuote = ({
@@ -209,11 +252,18 @@ const SwapReviewSheetWithQuote = ({
   quote,
   flashbotsEnabled,
   hideSwapReview,
+  operationSet,
+  virtualNode,
+  selectedGasToken,
+  setSelectedGasToken,
+  aggregateFee,
 }: SwapReviewSheetWithQuoteProps) => {
   const navigate = useRainbowNavigate();
 
   const [showMoreDetails, setShowDetails] = useState(false);
   const [sendingSwap, setSendingSwap] = useState(false);
+  const [isSendingFinalTransaction, setIsSendSendingFinalTransaction] =
+    useState<boolean>(false);
   const selectedGas = useGasStore.use.selectedGas();
   const confirmSwapButtonRef = useRef<HTMLButtonElement>(null);
   const { type } = useCurrentWalletTypeAndVendor();
@@ -229,6 +279,7 @@ const SwapReviewSheetWithQuote = ({
       assetToSell,
       assetToSellValue,
       selectedGas,
+      operationSet,
     });
 
   const { minimumReceived, swappingRoute, includedFee, exchangeRate } =
@@ -264,6 +315,41 @@ const SwapReviewSheetWithQuote = ({
   const openMoreDetails = useCallback(() => setShowDetails(true), []);
   const closeMoreDetails = useCallback(() => setShowDetails(false), []);
 
+  const { accountCluster, baseMainnetClient } = useOrby();
+
+  const operationStatusesUpdated = useCallback(
+    async (
+      statusSummary: OperationStatusType,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      finalTransactionStatus?: OperationStatus,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      statuses?: OperationStatus[],
+    ) => {
+      if (
+        !isSendingFinalTransaction &&
+        [OperationStatusType.SUCCESSFUL, OperationStatusType.PENDING].includes(
+          statusSummary,
+        )
+      ) {
+        setIsSendSendingFinalTransaction(true);
+        const swapExecutedSuccessfully = await onSwap({
+          quote: quote as Quote,
+          assetToSell,
+          assetToBuy,
+          degenMode: true,
+        });
+
+        setSendingSwap(false);
+        setIsSendSendingFinalTransaction(false);
+
+        if (swapExecutedSuccessfully) {
+          navigate(ROUTES.HOME, { state: { tab: 'tokens' } });
+        }
+      }
+    },
+    [isSendingFinalTransaction, quote, assetToSell, assetToBuy, navigate],
+  );
+
   const handleSwap = useCallback(async () => {
     if (!enoughNativeAssetBalanceForGas) {
       alert(
@@ -272,27 +358,51 @@ const SwapReviewSheetWithQuote = ({
         }),
       );
       return;
+    } else if (!accountCluster || !operationSet || !virtualNode) {
+      return;
     }
 
     setSendingSwap(true);
-    const swapExecutedSuccessfully = await onSwap({
-      assetToSell,
-      assetToBuy,
-      quote,
-      degenMode: false,
-    });
-    setSendingSwap(false);
-
-    if (swapExecutedSuccessfully) {
-      navigate(ROUTES.HOME, { state: { tab: 'tokens' } });
+    if (operationSet?.intents && operationSet?.intents?.length == 0) {
+      operationStatusesUpdated(OperationStatusType.SUCCESSFUL, undefined, []);
+      return;
     }
+
+    operationSet.primaryOperation = undefined;
+
+    const operation = operationSet.intents
+      ?.map((intent) => intent.intentOperations)
+      ?.flat()
+      ?.find((operation) => operation?.type == OperationType.SUBMIT_INTENT);
+
+    if (operation) {
+      operation.type = OperationType.FINAL_TRANSACTION;
+    }
+
+    const { operationResponses } = await virtualNode.sendOperationSet(
+      accountCluster,
+      operationSet,
+      signOperation,
+      undefined,
+      signOperation,
+    );
+
+    const ids = operationResponses
+      ?.map((op) => op.id)
+      .filter((id) => !_.isUndefined(id));
+
+    baseMainnetClient?.subscribeToOperationStatuses(
+      ids,
+      operationStatusesUpdated,
+    );
   }, [
-    assetToBuy,
-    assetToSell,
+    accountCluster,
+    baseMainnetClient,
     enoughNativeAssetBalanceForGas,
     nativeAsset?.symbol,
-    navigate,
-    quote,
+    operationSet,
+    operationStatusesUpdated,
+    virtualNode,
   ]);
 
   const goBack = useCallback(() => {
@@ -620,6 +730,13 @@ const SwapReviewSheetWithQuote = ({
                     enabled={show}
                     defaultSpeed={selectedGas.option}
                     speedMenuMarginRight="12px"
+                    selectedGasToken={selectedGasToken}
+                    setSelectedGasToken={(token) => {
+                      if (token) {
+                        setSelectedGasToken(token);
+                      }
+                    }}
+                    aggregateFee={aggregateFee}
                   />
                 </Row>
                 <Row>

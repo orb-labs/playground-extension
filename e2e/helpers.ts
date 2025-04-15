@@ -838,7 +838,7 @@ export async function importHardwareWalletFlow(
   });
   await findElementByTestIdAndClick({ id: 'set-password-button', driver });
   await delayTime('long');
-  await findElementByText(driver, 'Rainbow is ready to use');
+  await findElementByText(driver, 'OrbyPlayground is ready to use');
 }
 
 export async function importWalletFlowUsingKeyboardNavigation(
@@ -931,7 +931,7 @@ export async function importWalletFlowUsingKeyboardNavigation(
     await delayTime('long');
     const welcomeText = await findElementByText(
       driver,
-      'Rainbow is ready to use',
+      'OrbyPlayground is ready to use',
     );
     expect(welcomeText).toBeTruthy();
   }
@@ -1010,7 +1010,7 @@ export async function importWalletFlow(
     await delayTime('long');
     const welcomeText = await findElementByText(
       driver,
-      'Rainbow is ready to use',
+      'OrbyPlayground is ready to use',
     );
     expect(welcomeText).toBeTruthy();
   }

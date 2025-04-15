@@ -1,3 +1,5 @@
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
+
 import { RainbowError, logger } from '~/logger';
 
 import { queryClient } from '../react-query';
@@ -151,7 +153,7 @@ export const fetchPolygonAllowList =
     }>('/137-allowlist.json');
     const polygonAllowListDictionary = allowList.data?.data?.addresses?.reduce(
       (allowListDict, tokenAddress) => {
-        allowListDict[tokenAddress.toLowerCase()] = true;
+        allowListDict[validateAndFormatAddress(tokenAddress)] = true;
         return allowListDict;
       },
       {} as PolygonAllowListDictionary,

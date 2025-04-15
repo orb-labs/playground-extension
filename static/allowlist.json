@@ -1,5 +1,14 @@
 {
   "urls": [
+    "ws://chrome-extension",
+    "http://localhost:4001",
+    "http://localhost:4001",
+    "https://api-rpc-dev.orblabs.xyz",
+    "https://addys.p.rainbow.me",
+    "https://*.core.chainstack.com",
+    "https://cryptologos.cc",
+    "https://api/*",
+    "https://assets.coingecko.com",
     "ws://localhost:9090",
     "http://127.0.0.1:*",
     "https://*.g.alchemy.com",

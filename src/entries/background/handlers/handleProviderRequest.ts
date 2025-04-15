@@ -1,7 +1,4 @@
-import {
-  AddEthereumChainProposedChain,
-  handleProviderRequest as rnbwHandleProviderRequest,
-} from '@rainbow-me/provider';
+import { AddEthereumChainProposedChain } from '@rainbow-me/provider';
 import { Chain, UserRejectedRequestError } from 'viem';
 
 import { event } from '~/analytics/event';
@@ -31,6 +28,8 @@ import { WELCOME_URL, goToNewTab } from '~/core/utils/tabs';
 import { getProvider } from '~/core/wagmi/clientToProvider';
 import { IN_DAPP_NOTIFICATION_STATUS } from '~/entries/iframe/notification';
 import { RainbowError, logger } from '~/logger';
+
+import { rnbwHandleProviderRequest } from './rnbwHandleProviderRequest';
 
 const MAX_REQUEST_PER_SECOND = 10;
 const MAX_REQUEST_PER_MINUTE = 90;
@@ -103,6 +102,7 @@ const messengerProviderRequest = async (
   const { addPendingRequest } = pendingRequestStore.getState();
   // Add pending request to global background state.
   addPendingRequest(request);
+  console.log('[messengerProviderRequest] request', request);
 
   let ready = isInitialized();
   while (!ready) {
@@ -120,13 +120,19 @@ const messengerProviderRequest = async (
       url: WELCOME_URL,
     });
   }
+
+  console.log('[messengerProviderRequest] payload 00');
   // Wait for response from the popup.
   const payload: unknown | null = await new Promise((resolve) =>
     // eslint-disable-next-line no-promise-executor-return
-    messenger.reply(`message:${request.id}`, async (payload) =>
-      resolve(payload),
-    ),
+    messenger.reply(`message:${request.id}`, async (payload) => {
+      console.log('[messengerProviderRequest] payload', payload);
+      return resolve(payload);
+    }),
   );
+
+  console.log('[messengerProviderRequest] payload 11', payload);
+
   if (!payload) {
     throw new UserRejectedRequestError(Error('User rejected the request.'));
   }
@@ -222,6 +228,8 @@ const skipRateLimitCheck = (method: string) =>
     'eth_chainId',
     'eth_accounts',
     'eth_sendTransaction',
+    'signTransaction',
+    'signAndSendTransaction',
     'eth_signTransaction',
     'personal_sign',
     'eth_signTypedData',

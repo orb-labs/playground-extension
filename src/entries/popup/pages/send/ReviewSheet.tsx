@@ -1,3 +1,4 @@
+import { OperationSet, OperationStatusType } from '@orb-labs/orby-core';
 import { motion } from 'framer-motion';
 import React, {
   useCallback,
@@ -6,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Address } from 'viem';
+import { Address, formatUnits } from 'viem';
 
 import { i18n } from '~/core/languages';
 import { chainsLabel } from '~/core/references/chains';
@@ -16,8 +17,10 @@ import { UniqueAsset } from '~/core/types/nfts';
 import { truncateAddress } from '~/core/utils/address';
 import {
   getBlockExplorerHostForChain,
+  getChain,
   isCustomChain,
 } from '~/core/utils/chains';
+import { handleSignificantDecimalsWithThreshold } from '~/core/utils/numbers';
 import { isLowerCaseMatch } from '~/core/utils/strings';
 import { getExplorerUrl, goToNewTab } from '~/core/utils/tabs';
 import { wagmiConfig } from '~/core/wagmi';
@@ -72,6 +75,8 @@ import { useWallets } from '../../hooks/useWallets';
 import playSound from '../../utils/playSound';
 
 import { ContactAction } from './ContactPrompt';
+
+import { OperationSetStatus } from '.';
 
 const EditContactDropdown = ({
   chainId,
@@ -253,7 +258,11 @@ export const ReviewSheet = ({
   onCancel,
   onSend,
   onSaveContactAction,
+  operationSet,
+  operationSetStatus,
 }: {
+  operationSetStatus?: OperationSetStatus;
+  operationSet?: OperationSet;
   show: boolean;
   toAddress: Address;
   asset?: ParsedUserAsset | null;
@@ -274,7 +283,6 @@ export const ReviewSheet = ({
   const [notSendingOnEthereumChecks, setNotSendingOnEthereumChecks] =
     useState(false);
   const prevShow = usePrevious(show);
-  const [sending, setSending] = useState(false);
   const confirmSendButtonRef = useRef<HTMLButtonElement>(null);
   const { chains } = wagmiConfig;
   const assetChainId =
@@ -315,18 +323,15 @@ export const ReviewSheet = ({
   );
 
   const handleSend = useCallback(async () => {
-    if (sendEnabled && !sending) {
-      setSending(true);
+    if (sendEnabled && !operationSetStatus?.statusSummary) {
       try {
         await onSend();
         playSound('SendSound');
       } catch (e) {
-        //
-      } finally {
-        setSending(false);
+        console.error(e);
       }
     }
-  }, [onSend, sendEnabled, sending]);
+  }, [onSend, sendEnabled, operationSetStatus?.statusSummary]);
 
   const { explainerSheetParams, showExplainerSheet, hideExplainerSheet } =
     useExplainerSheetParams();
@@ -436,7 +441,11 @@ export const ReviewSheet = ({
                                 <NFTIcon asset={nft} size={44} badge={true} />
                               </Box>
                             ) : (
-                              <CoinIcon asset={asset} size={44} />
+                              <CoinIcon
+                                asset={asset}
+                                size={44}
+                                isParent={true}
+                              />
                             )}
                           </Box>
                         </Inline>
@@ -541,6 +550,40 @@ export const ReviewSheet = ({
               </Stack>
             </Box>
           </Stack>
+
+          {operationSet?.inputState && (
+            <Box paddingHorizontal="16px">
+              {operationSet?.inputState.getFungibleTokens()?.map((input, i) => (
+                <Box key={i} paddingVertical="8px">
+                  <Inline key={i} alignVertical="center">
+                    <Symbol
+                      size={14}
+                      symbol="arrow.up.circle.fill"
+                      weight="bold"
+                      color="red"
+                    />
+                    <Box paddingLeft="10px">
+                      <Text key={i} size="14pt" weight="bold" color="label">
+                        Use{' '}
+                        {handleSignificantDecimalsWithThreshold(
+                          formatUnits(
+                            input.toRawAmount(),
+                            input.token.decimals,
+                          ),
+                          2,
+                        )}{' '}
+                        {input.token.symbol} from{' '}
+                        {
+                          getChain({ chainId: Number(input.token.chainId) })
+                            .name
+                        }
+                      </Text>
+                    </Box>
+                  </Inline>
+                </Box>
+              ))}
+            </Box>
+          )}
 
           {notSendingOnEthereum && !isToWalletOwner && (
             <Box paddingHorizontal="16px" paddingBottom="20px">
@@ -648,11 +691,15 @@ export const ReviewSheet = ({
                 testId="review-confirm-button"
                 tabIndex={0}
                 ref={confirmSendButtonRef}
-                disabled={sending}
+                disabled={
+                  operationSetStatus?.finalTransactionStatus?.status ==
+                  OperationStatusType.WAITING_PRECONDITION
+                }
               >
                 {sendEnabled ? (
                   <Box>
-                    {sending ? (
+                    {operationSetStatus?.finalTransactionStatus?.status ==
+                    OperationStatusType.WAITING_PRECONDITION ? (
                       <Box
                         width="fit"
                         alignItems="center"

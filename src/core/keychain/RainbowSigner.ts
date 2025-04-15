@@ -5,11 +5,16 @@ import {
   TransactionFactory,
 } from '@ethereumjs/tx';
 import { TransactionRequest } from '@ethersproject/abstract-provider';
-import { Signer } from '@ethersproject/abstract-signer';
+import {
+  Signer,
+  TypedDataDomain,
+  TypedDataField,
+} from '@ethersproject/abstract-signer';
 import { BigNumber } from '@ethersproject/bignumber';
 import { Bytes } from '@ethersproject/bytes';
 import { defineReadOnly } from '@ethersproject/properties';
 import { Provider } from '@ethersproject/providers';
+import { Wallet } from '@ethersproject/wallet';
 import { personalSign } from '@metamask/eth-sig-util';
 import { bytesToHex } from 'ethereum-cryptography/utils';
 import { Address } from 'viem';
@@ -47,6 +52,16 @@ export class RainbowSigner extends Signer {
       data,
     });
     return signature;
+  }
+
+  async signTypedData(
+    domain: TypedDataDomain,
+    types: Record<string, Array<TypedDataField>>,
+    value: Record<string, any>,
+  ): Promise<string> {
+    const pkey = this.#getPrivateKeyBuffer();
+    const wallet = new Wallet(pkey);
+    return wallet._signTypedData(domain, types, value);
   }
 
   async signTransaction(transaction: TransactionRequest): Promise<string> {

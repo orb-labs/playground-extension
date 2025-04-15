@@ -1,3 +1,4 @@
+import { usePortfolio } from '@orb-labs/orby-react';
 import { useCallback, useMemo, useState } from 'react';
 
 import {
@@ -8,8 +9,13 @@ import {
 import { useUserAssets } from '~/core/resources/assets';
 import { useCustomNetworkAssets } from '~/core/resources/assets/customNetworkAssets';
 import { useCurrentAddressStore, useCurrentCurrencyStore } from '~/core/state';
+import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 import { AddressOrEth, ParsedUserAsset } from '~/core/types/assets';
 import { ChainId } from '~/core/types/chains';
+import {
+  convertFungibleTokenAmountsToParsedUserAssets,
+  convertStandardizedBalanceToParsedUserAssets,
+} from '~/core/utils/orb';
 import { isLowerCaseMatch } from '~/core/utils/strings';
 
 export type SortMethod = 'token' | 'chain';
@@ -31,9 +37,10 @@ export const useSendAsset = () => {
   const [selectedAssetAddress, setSelectedAssetAddress] = useState<
     AddressOrEth | ''
   >('');
-  const [selectedAssetChain, setSelectedAssetChain] = useState<ChainId>(
-    ChainId.mainnet,
-  );
+  const [selectedAssetChain, setSelectedAssetChain] = useState<
+    ChainId | undefined
+  >(undefined);
+
   const { data: assets = [] } = useUserAssets(
     {
       address,
@@ -64,7 +71,7 @@ export const useSendAsset = () => {
     [],
   );
 
-  const combinedAssets = useMemo(
+  let combinedAssets = useMemo(
     () =>
       Array.from(
         new Map(
@@ -77,6 +84,17 @@ export const useSendAsset = () => {
     [assets, customNetworkAssets],
   );
 
+  const { testnetMode } = useTestnetModeStore();
+  const { portfolio } = usePortfolio(testnetMode);
+
+  combinedAssets = useMemo(() => {
+    if (!portfolio) {
+      return [];
+    }
+
+    return convertStandardizedBalanceToParsedUserAssets(portfolio);
+  }, [portfolio]);
+
   const allAssets = useMemo(
     () =>
       combinedAssets.sort(
@@ -87,21 +105,33 @@ export const useSendAsset = () => {
     [combinedAssets],
   );
 
+  const flattenedAssets = useMemo(() => {
+    if (!portfolio) {
+      return [];
+    }
+
+    return convertFungibleTokenAmountsToParsedUserAssets(portfolio);
+  }, [portfolio]);
+
   const asset = useMemo(
     () =>
-      allAssets?.find(
+      flattenedAssets?.find(
         ({ address, chainId }) =>
           isLowerCaseMatch(address, selectedAssetAddress) &&
           chainId === selectedAssetChain,
       ) || null,
-    [allAssets, selectedAssetAddress, selectedAssetChain],
+    [flattenedAssets, selectedAssetAddress, selectedAssetChain],
   );
 
   return {
     selectAssetAddressAndChain,
+    setSelectedAssetAddress,
+    setSelectedAssetChain,
     asset,
     assets: allAssets,
     sortMethod,
     setSortMethod,
+    portfolio,
+    chainId: selectedAssetChain,
   };
 };

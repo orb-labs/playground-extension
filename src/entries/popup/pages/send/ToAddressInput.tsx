@@ -382,7 +382,7 @@ export const ToAddressInput = React.forwardRef<InputRefAPI, ToAddressProps>(
     return (
       <>
         <DropdownInputWrapper
-          zIndex={2}
+          zIndex={3}
           dropdownHeight={452 - (testnetMode ? TESTNET_MODE_BAR_HEIGHT : 0)}
           testId={'to-address-input'}
           leftComponent={

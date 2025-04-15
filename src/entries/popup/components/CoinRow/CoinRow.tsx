@@ -25,12 +25,16 @@ export function CoinRow({
   topRow,
   bottomRow,
   testId,
+  size,
+  isParent,
 }: {
   asset?: ParsedAsset | ParsedUserAsset;
   fallbackText?: string;
   topRow: ReactNode;
   bottomRow: ReactNode;
   testId?: string;
+  size: number;
+  isParent: boolean;
 }) {
   return (
     <Box style={{ height: '52px' }} testId={testId}>
@@ -40,7 +44,12 @@ export function CoinRow({
             <Row>
               <Columns alignVertical="center" space="8px">
                 <Column width="content">
-                  <CoinIcon asset={asset} fallbackText={fallbackText} />
+                  <CoinIcon
+                    asset={asset}
+                    fallbackText={fallbackText}
+                    size={size}
+                    isParent={isParent}
+                  />
                 </Column>
                 <Column>
                   <Rows>

@@ -2,6 +2,7 @@ import { isAddress } from '@ethersproject/address';
 import { Mnemonic, isValidMnemonic } from '@ethersproject/hdnode';
 import { TransactionResponse } from '@ethersproject/providers';
 import { parseEther } from '@ethersproject/units';
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import BigNumber from 'bignumber.js';
 import omit from 'lodash/omit';
 import { Address } from 'viem';
@@ -69,7 +70,10 @@ export const hasPreviousTransactions = async (
       data: { addresses: Record<string, boolean> };
     };
 
-    return parsedResponse?.data?.addresses[address.toLowerCase()] === true;
+    return (
+      parsedResponse?.data?.addresses[validateAndFormatAddress(address)] ===
+      true
+    );
   } catch (e) {
     return false;
   }

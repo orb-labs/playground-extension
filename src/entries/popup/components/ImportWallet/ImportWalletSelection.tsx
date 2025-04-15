@@ -44,6 +44,7 @@ const derivedAccountsFromSecret = async (secret: string) => {
   if (current[secret]) return current[secret];
 
   const accounts = await deriveAccountsFromSecret(secret);
+  console.log('derivedAccountsFromSecret', accounts);
   derivedAccountsStore.set({ ...current, [secret]: accounts });
 
   return accounts || ([] as Address[]);
@@ -107,16 +108,16 @@ export const useImportWalletsFromSecrets = () => {
 export const ImportWalletSelection = ({ onboarding = false }) => {
   const navigate = useRainbowNavigate();
   const setCurrentAddress = useCurrentAddressStore.use.setCurrentAddress();
+  const setCurrentAddresses = useCurrentAddressStore.use.setCurrentAddresses();
 
   const secrets = useImportWalletSessionSecrets();
 
   const accountsToImport = useDeriveAccountsFromSecrets(secrets);
   const { importSecrets, isImporting } = useImportWalletsFromSecrets();
 
-  const { isLoading: walletsSummaryIsLoading, walletsSummary } =
-    useWalletsSummary({
-      addresses: accountsToImport,
-    });
+  const { walletsSummary } = useWalletsSummary({
+    addresses: accountsToImport,
+  });
 
   const handleEditWallets = () => {
     navigate(
@@ -130,6 +131,7 @@ export const ImportWalletSelection = ({ onboarding = false }) => {
   const onImport = () =>
     importSecrets({ secrets }).then(() => {
       setCurrentAddress(accountsToImport[0]);
+      setCurrentAddresses(accountsToImport);
       if (onboarding)
         navigate(ROUTES.CREATE_PASSWORD, {
           state: { backTo: ROUTES.IMPORT__SEED },
@@ -137,8 +139,7 @@ export const ImportWalletSelection = ({ onboarding = false }) => {
       else navigate(ROUTES.HOME);
     });
 
-  const isReady =
-    !!accountsToImport?.length && !isImporting && !walletsSummaryIsLoading;
+  const isReady = !!accountsToImport?.length && !isImporting;
 
   const hasRecentlyUsedWallet = useMemo(
     () =>

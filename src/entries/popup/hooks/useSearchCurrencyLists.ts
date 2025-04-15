@@ -1,4 +1,5 @@
 import { isAddress } from '@ethersproject/address';
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import { uniqBy } from 'lodash';
 import { rankings } from 'match-sorter';
 import { useCallback, useMemo } from 'react';
@@ -64,7 +65,7 @@ const filterBridgeAsset = ({
   asset?: SearchAsset;
   filter?: string;
 }) =>
-  asset?.address?.toLowerCase()?.startsWith(filter?.toLowerCase()) ||
+  validateAndFormatAddress(asset?.address)?.startsWith(filter?.toLowerCase()) ||
   asset?.name?.toLowerCase()?.startsWith(filter?.toLowerCase()) ||
   asset?.symbol?.toLowerCase()?.startsWith(filter?.toLowerCase());
 

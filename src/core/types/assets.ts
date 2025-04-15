@@ -41,12 +41,16 @@ export interface ParsedAsset {
     networks: { [id in ChainId]?: { bridgeable: boolean } };
   };
   transferable?: boolean;
+  relatedChainIds?: string[];
+  relatedAssets?: ParsedUserAsset[];
+  standardizedTokenId?: string;
 }
 
 export interface ParsedUserAsset extends ParsedAsset {
   balance: {
     amount: string;
     display: string;
+    displayOnchain: string;
   };
   native: {
     balance: {

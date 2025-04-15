@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useOrby } from '@orb-labs/orby-react';
+import { useEffect, useMemo } from 'react';
 import { Chain, HttpTransport, Transport, http } from 'viem';
 import { createConfig } from 'wagmi';
 
 import { useRainbowChains } from '~/entries/popup/hooks/useRainbowChains';
 
 import { SUPPORTED_CHAINS } from '../references/chains';
+import { useRainbowChainsStore } from '../state';
 
 import { handleRpcUrl } from './clientRpc';
 
@@ -42,10 +44,28 @@ const updateWagmiConfig = (chains: Chain[]) => {
 
 const WagmiConfigUpdater = () => {
   const { rainbowChains: chains } = useRainbowChains();
-  useEffect(() => {
-    updateWagmiConfig(chains);
-  }, [chains]);
+  const { addAllCustomRPC } = useRainbowChainsStore();
+  const { getVirtualNodeRpcUrlsForSupportedChains } = useOrby();
 
+  const virtualNodeUrls = useMemo(
+    () => getVirtualNodeRpcUrlsForSupportedChains(),
+    [getVirtualNodeRpcUrlsForSupportedChains],
+  );
+
+  useEffect((): void => {
+    const rpcs = virtualNodeUrls?.map((virtualNodeUrl) => {
+      return {
+        rpcUrl: virtualNodeUrl.virtualNodeRpcUrl!,
+        chainId: Number(virtualNodeUrl.chainId),
+      };
+    });
+
+    if (rpcs) {
+      addAllCustomRPC(rpcs);
+    }
+  }, [addAllCustomRPC, virtualNodeUrls]);
+
+  updateWagmiConfig(chains);
   return null;
 };
 

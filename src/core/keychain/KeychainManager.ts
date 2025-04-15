@@ -7,7 +7,9 @@ import {
   encryptWithKey,
   importKey,
 } from '@metamask/browser-passworder';
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import * as Sentry from '@sentry/browser';
+import { Keypair } from '@solana/web3.js';
 import { Address } from 'viem';
 
 import { LocalStorage, SessionStorage } from '../storage';
@@ -87,6 +89,7 @@ class KeychainManager {
               }),
             );
             await privates.get(this).persist();
+
             this.state.isUnlocked = true;
           }
         } catch (e) {
@@ -313,7 +316,7 @@ class KeychainManager {
       );
       if (matchingExistingAccount) {
         const existingAccountWallet = await this.getWallet(
-          matchingExistingAccount,
+          matchingExistingAccount as Address,
         );
         if (existingAccountWallet.type !== KeychainType.ReadOnlyKeychain) {
           throw new Error(`Duplicate account ${newAccounts[i]}`);
@@ -416,7 +419,8 @@ class KeychainManager {
   async removeAccount(address: Address) {
     for (let i = 0; i < this.state.keychains.length; i++) {
       const accounts = await this.state.keychains[i].getAccounts();
-      if (accounts.includes(address)) {
+      const addresses = accounts.map((address) => address);
+      if (addresses.includes(address)) {
         await this.state.keychains[i].removeAccount(address);
         await privates.get(this).removeEmptyKeychainsIfNeeded();
       }
@@ -536,16 +540,26 @@ class KeychainManager {
     for (let i = 0; i < this.state.keychains.length; i++) {
       const keychain = this.state.keychains[i];
       const accounts = await keychain.getAccounts();
-      if (accounts.includes(address)) {
+      if (
+        accounts
+          .map((a) => validateAndFormatAddress(a))
+          .includes(validateAndFormatAddress(address))
+      ) {
         return keychain;
       }
     }
+
     throw new Error('No keychain found for account');
   }
 
   async getSigner(address: Address) {
     const keychain = await this.getKeychain(address);
     return keychain.getSigner(address);
+  }
+
+  async getKeyPair(address: Address): Promise<Keypair> {
+    const keychain = await this.getKeychain(address);
+    return keychain.getKeyPair(address);
   }
 }
 

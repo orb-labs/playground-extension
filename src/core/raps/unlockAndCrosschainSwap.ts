@@ -1,3 +1,4 @@
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import {
   ALLOWS_PERMIT,
   ChainId,
@@ -133,7 +134,9 @@ export const createUnlockAndCrosschainSwapRap = async (
     !nativeAsset &&
     chainId === ChainId.mainnet &&
     ALLOWS_PERMIT[
-      assetToSell.address?.toLowerCase() as keyof PermitSupportedTokenList
+      validateAndFormatAddress(
+        assetToSell.address,
+      ) as keyof PermitSupportedTokenList
     ];
 
   if (swapAssetNeedsUnlocking && !allowsPermit) {

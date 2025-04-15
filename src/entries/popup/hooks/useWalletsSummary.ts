@@ -1,3 +1,4 @@
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import { useMemo } from 'react';
 import { Address } from 'viem';
 
@@ -43,7 +44,7 @@ const parseAddressSummary = ({
     | undefined;
 }): WalletSummary => {
   const addressData =
-    addysSummary?.data.addresses[address.toLowerCase() as Address];
+    addysSummary?.data.addresses[validateAndFormatAddress(address) as Address];
   const summaryByChain = addressData?.summary_by_chain;
 
   const chainIds = Object.keys(summaryByChain || {}).map((id) =>

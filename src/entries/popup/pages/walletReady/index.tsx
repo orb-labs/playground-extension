@@ -123,7 +123,7 @@ export function WalletReady() {
                   borderRadius="round"
                   style={{ width: '18px', height: '18px' }}
                 >
-                  <Box style={{ fontSize: '8px' }}>🌈</Box>
+                  <Box style={{ fontSize: '8px' }}>🔮</Box>
                 </Box>
                 <Box paddingLeft="8px">
                   <Text

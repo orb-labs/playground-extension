@@ -1,3 +1,10 @@
+import {
+  ActivityStatus,
+  Category,
+  OperationStatus,
+  OperationType,
+} from '@orb-labs/orby-core';
+import { useGetActivity } from '@orb-labs/orby-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -8,14 +15,12 @@ import {
   consolidatedTransactionsQueryKey,
   useConsolidatedTransactions,
 } from '~/core/resources/transactions/consolidatedTransactions';
-import {
-  useCurrentAddressStore,
-  useCurrentCurrencyStore,
-  usePendingTransactionsStore,
-} from '~/core/state';
+import { fetchTransaction } from '~/core/resources/transactions/transaction';
+import { useCurrentAddressStore, useCurrentCurrencyStore } from '~/core/state';
 import { useTestnetModeStore } from '~/core/state/currentSettings/testnetMode';
 import { useCustomNetworkTransactionsStore } from '~/core/state/transactions/customNetworkTransactions';
 import { RainbowTransaction } from '~/core/types/transactions';
+import { truncateAddress } from '~/core/utils/address';
 import { useSupportedChains } from '~/core/utils/chains';
 
 import useComponentWillUnmount from './useComponentWillUnmount';
@@ -28,18 +33,15 @@ interface UseInfiniteTransactionListParams {
   getScrollElement: () => HTMLDivElement | null;
 }
 
-const stableEmptyPendingTransactionsArray: RainbowTransaction[] = [];
-
 export const useInfiniteTransactionList = ({
   getScrollElement,
 }: UseInfiniteTransactionListParams) => {
   const { currentAddress: address } = useCurrentAddressStore();
   const { currentCurrency: currency } = useCurrentCurrencyStore();
-  const pendingTransactions = usePendingTransactionsStore(
-    (s) =>
-      s.pendingTransactions[address] || stableEmptyPendingTransactionsArray,
-  );
   const [manuallyRefetching, setManuallyRefetching] = useState(false);
+  const [transactions, setTransactions] = useState<
+    RainbowTransaction[] | undefined
+  >(undefined);
 
   const customNetworkTransactions = useCustomNetworkTransactionsStore(
     (s) => s.customNetworkTransactions,
@@ -75,13 +77,71 @@ export const useInfiniteTransactionList = ({
 
   const pages = data?.pages;
   const cutoff = pages?.length ? pages[pages.length - 1]?.cutoff : null;
-  const transactions = useMemo(
-    () => pages?.flatMap((p) => p.transactions) || [],
-    [pages],
-  );
+
+  const { activity, isLoading } = useGetActivity(testnetMode);
+
+  useEffect(() => {
+    const getActivity = async () => {
+      if (!activity) return;
+
+      const promises = activity?.activities?.map(async (ac) => {
+        const final = ac.operationStatuses.find(
+          (status) => status.type == OperationType.FINAL_TRANSACTION,
+        ) as OperationStatus;
+
+        if (!final) {
+          return;
+        } else if (!final.hash) {
+          return;
+        } else if (!final.chainId) {
+          return;
+        } else if (
+          !['SUCCESSFUL', ActivityStatus.PENDING].includes(ac.overallStatus)
+        ) {
+          return;
+        }
+
+        const transaction = await fetchTransaction({
+          hash: final.hash as `0x${string}`,
+          address: address,
+          chainId: Number(final.chainId),
+          currency: currency,
+        });
+
+        if (!transaction) {
+          return;
+        }
+
+        let description = '';
+        const formattedAddress = truncateAddress(transaction.to || '0x');
+        if (ac.category == Category.SEND) {
+          description = `Send funds to ${formattedAddress}`;
+        } else if (ac.category == Category.RECEIVE) {
+          description = `Receive funds from ${formattedAddress}`;
+        } else if (ac.category == Category.SWAP) {
+          description = `Swap funds on ${formattedAddress}`;
+        } else if (ac.category == Category.REBALANCE) {
+          description = `Rebalance funds on ${formattedAddress}`;
+        } else if (ac.category == Category.BRIDGE) {
+          description = `Bridge funds on ${formattedAddress}`;
+        } else if (ac.category == Category.FUNCTION_CALL) {
+          description = `Calling contract ${formattedAddress}`;
+        } else {
+          description = 'Unknown';
+        }
+
+        return { ...transaction, description };
+      });
+
+      const transactions = await Promise.all(promises);
+      setTransactions(transactions.filter((tx) => tx) as RainbowTransaction[]);
+    };
+
+    getActivity();
+  }, [activity, address, currency]);
 
   const transactionsAfterCutoff = useMemo(() => {
-    const allTransactions = transactions.concat(
+    const allTransactions = (transactions ?? []).concat(
       currentAddressCustomNetworkTransactions,
     );
     if (!cutoff) return allTransactions;
@@ -98,11 +158,11 @@ export const useInfiniteTransactionList = ({
     () =>
       Object.entries(
         selectTransactionsByDate([
-          ...pendingTransactions,
+          // ...pendingTransactions,
           ...transactionsAfterCutoff,
         ]),
       ).flat(2),
-    [pendingTransactions, transactionsAfterCutoff],
+    [transactionsAfterCutoff],
   );
 
   const infiniteRowVirtualizer = useVirtualizer({
@@ -146,7 +206,7 @@ export const useInfiniteTransactionList = ({
     const [lastRow] = [...rows].reverse();
     if (!lastRow) return;
     if (
-      lastRow.index >= transactions.length - 1 &&
+      lastRow.index >= (transactions ?? []).length - 1 &&
       hasNextPage &&
       !isFetching &&
       !isFetchingNextPage
@@ -166,14 +226,13 @@ export const useInfiniteTransactionList = ({
       fetchNextPage();
     }
   }, [
-    data?.pages?.length,
     fetchNextPage,
     hasNextPage,
     isFetching,
     isFetchingNextPage,
-    transactions.length,
     transactionsAfterCutoff.length,
     rows,
+    transactions,
   ]);
 
   const refetchTransactions = async () => {
@@ -194,7 +253,7 @@ export const useInfiniteTransactionList = ({
   return {
     error,
     fetchNextPage,
-    isFetching,
+    isFetching: isFetching || isLoading || !transactions,
     isFetchingNextPage,
     isInitialLoading,
     status,

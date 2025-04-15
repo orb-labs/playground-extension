@@ -6,6 +6,7 @@ import {
   TransactionResponse,
 } from '@ethersproject/providers';
 import { formatUnits } from '@ethersproject/units';
+import { validateAndFormatAddress } from '@orb-labs/orby-core';
 import { isString } from 'lodash';
 import { Address } from 'viem';
 
@@ -117,7 +118,9 @@ export const getDataForNftTransfer = (
   asset: UniqueAsset,
 ): string | undefined => {
   if (!asset.id || !asset.asset_contract?.address) return;
-  const lowercasedContractAddress = asset.asset_contract.address.toLowerCase();
+  const lowercasedContractAddress = validateAndFormatAddress(
+    asset.asset_contract.address,
+  );
   const standard = asset.asset_contract?.schema_name;
   let data: string | undefined;
   if (

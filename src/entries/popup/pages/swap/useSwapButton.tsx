@@ -1,8 +1,20 @@
+import {
+  CreateOperationsStatus,
+  OperationSet,
+  OperationStatus,
+  OperationStatusType,
+  OperationType,
+} from '@orb-labs/orby-core';
+import { useOrby } from '@orb-labs/orby-react';
+import { OrbyActions } from '@orb-labs/orby-viem-extension';
 import { CrosschainQuote, Quote, QuoteError } from '@rainbow-me/swaps';
-import React, { useState } from 'react';
+import _ from 'lodash';
+import React, { useCallback, useState } from 'react';
+import { Client, HttpTransport, PublicRpcSchema } from 'viem';
 
 import { ParsedSearchAsset } from '~/core/types/assets';
 import { KeychainType } from '~/core/types/keychainTypes';
+import { signOperation } from '~/core/utils/orb';
 import { Bleed, Box, Inline, Symbol } from '~/design-system';
 import { TextStyles } from '~/design-system/styles/core.css';
 import {
@@ -36,6 +48,14 @@ interface UseSwapButtonArgs {
   showSwapReviewSheet: () => void;
   isDegenModeEnabled: boolean;
   timeEstimate: SwapTimeEstimate | null;
+  operationSet?: OperationSet | null;
+  virtualNode?: Client<
+    HttpTransport,
+    undefined,
+    undefined,
+    PublicRpcSchema,
+    OrbyActions
+  >;
 }
 
 interface SwapButton {
@@ -50,22 +70,56 @@ interface SwapButton {
 
 export const useSwapButton = ({
   quote,
+  operationSet,
   isLoading,
   assetToSell,
   assetToBuy,
-  enoughAssetsForSwap,
   validationButtonLabel,
   hideExplainerSheet,
   showExplainerSheet,
   showSwapReviewSheet,
   isDegenModeEnabled,
   timeEstimate,
+  virtualNode,
 }: UseSwapButtonArgs): SwapButton => {
   const [status, setStatus] = useState<'idle' | 'degen_swapping'>('idle');
+  const [isSendingFinalTransaction, setIsSendSendingFinalTransaction] =
+    useState<boolean>(false);
   const t = useTranslationContext();
   const navigate = useRainbowNavigate();
   const { type } = useCurrentWalletTypeAndVendor();
+  const { accountCluster, baseMainnetClient } = useOrby();
   const isHardwareWallet = type === KeychainType.HardwareWalletKeychain;
+
+  const operationStatusesUpdated = useCallback(
+    async (
+      statusSummary: OperationStatusType,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _finalTransactionStatus?: OperationStatus,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      _statuses?: OperationStatus[],
+    ) => {
+      if (
+        !isSendingFinalTransaction &&
+        [
+          (OperationStatusType.SUCCESSFUL, OperationStatusType.PENDING),
+        ].includes(statusSummary)
+      ) {
+        setIsSendSendingFinalTransaction(true);
+        const swapExecutedSuccessfully = await onSwap({
+          quote: quote as Quote,
+          assetToSell,
+          assetToBuy,
+          degenMode: true,
+        });
+
+        if (swapExecutedSuccessfully) {
+          navigate(ROUTES.HOME, { state: { tab: 'activity' } });
+        }
+      }
+    },
+    [isSendingFinalTransaction, navigate, quote, assetToSell, assetToBuy],
+  );
 
   if (isLoading) {
     return {
@@ -101,7 +155,7 @@ export const useSwapButton = ({
   }
 
   if (!(quote as QuoteError).error) {
-    if (!enoughAssetsForSwap) {
+    if (operationSet?.status == CreateOperationsStatus.INSUFFICIENT_FUNDS) {
       return {
         buttonColor: 'fillSecondary',
         buttonDisabled: true,
@@ -145,16 +199,39 @@ export const useSwapButton = ({
         buttonIcon: null,
         buttonAction: async () => {
           setStatus('degen_swapping');
-          const swapExecutedSuccessfully = await onSwap({
-            quote,
-            assetToSell,
-            assetToBuy,
-            degenMode: true,
-          });
-          setStatus('idle');
-          if (swapExecutedSuccessfully) {
-            navigate(ROUTES.HOME, { state: { tab: 'activity' } });
+          if (virtualNode && accountCluster && operationSet) {
+            operationSet.primaryOperation = undefined;
+
+            const operation = operationSet.intents
+              ?.map((intent) => intent.intentOperations)
+              ?.flat()
+              ?.find(
+                (operation) => operation?.type == OperationType.SUBMIT_INTENT,
+              );
+
+            if (operation) {
+              operation.type = OperationType.FINAL_TRANSACTION;
+            }
+
+            const { operationResponses } = await virtualNode.sendOperationSet(
+              accountCluster,
+              operationSet,
+              signOperation,
+              undefined,
+              signOperation,
+            );
+
+            const ids = operationResponses
+              ?.map((op) => op.id)
+              .filter((id) => !_.isUndefined(id));
+
+            baseMainnetClient?.subscribeToOperationStatuses(
+              ids,
+              operationStatusesUpdated,
+            );
           }
+
+          setStatus('idle');
         },
         status: 'ready',
       };
@@ -176,7 +253,11 @@ export const useSwapButton = ({
                 icon: (
                   <Box>
                     <Box>
-                      <CoinIcon asset={assetToSell} size={40} />
+                      <CoinIcon
+                        asset={assetToSell}
+                        size={40}
+                        isParent={false}
+                      />
                     </Box>
                     <Box width="full">
                       <Inline alignHorizontal="right">
@@ -275,7 +356,9 @@ export const useSwapButton = ({
         buttonAction: () =>
           showExplainerSheet({
             show: true,
-            header: { icon: <CoinIcon asset={assetToSell} size={32} /> },
+            header: {
+              icon: <CoinIcon asset={assetToSell} size={32} isParent={false} />,
+            },
 
             title: t('swap.explainers.fee_on_transfer_token.title'),
             description: [
@@ -327,14 +410,14 @@ export const useSwapButton = ({
               icon: (
                 <Inline space="8px" alignVertical="center">
                   <Box>
-                    <CoinIcon asset={assetToSell} size={40} />
+                    <CoinIcon asset={assetToSell} size={40} isParent={false} />
                   </Box>
                   <ChevronRightDouble
                     colorLeft="separatorSecondary"
                     colorRight="separator"
                   />
                   <Box>
-                    <CoinIcon asset={assetToBuy} size={40} />
+                    <CoinIcon asset={assetToBuy} size={40} isParent={false} />
                   </Box>
                 </Inline>
               ),

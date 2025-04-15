@@ -45,6 +45,7 @@ const ImportWalletViaPrivateKey = () => {
   const [isAddingWallets, setIsAddingWallets] = useState(false);
   const [secrets, setSecrets] = useState<string[]>(['']);
   const setCurrentAddress = useCurrentAddressStore.use.setCurrentAddress();
+  const setCurrentAddresses = useCurrentAddressStore.use.setCurrentAddresses();
 
   const [validity, setValidity] = useState<
     { valid: boolean; too_long: boolean; type: string | undefined }[]
@@ -116,6 +117,7 @@ const ImportWalletViaPrivateKey = () => {
             secrets[0],
           )) as Address;
           setCurrentAddress(address);
+          setCurrentAddresses([address]);
           setIsAddingWallets(false);
 
           // workaround for a deeper issue where the keychain status
@@ -136,7 +138,14 @@ const ImportWalletViaPrivateKey = () => {
         }
       }
     }
-  }, [isAddingWallets, navigate, onboarding, secrets, setCurrentAddress]);
+  }, [
+    isAddingWallets,
+    navigate,
+    onboarding,
+    secrets,
+    setCurrentAddress,
+    setCurrentAddresses,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {

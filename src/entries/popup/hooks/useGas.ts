@@ -253,6 +253,51 @@ const useGas = ({
 
   const [selectedSpeed, setSelectedSpeed] = useState<GasSpeed>(defaultSpeed);
 
+  // There was an issue with gas for sending swaps and this change made it work. Infortunately, it let to an infinite re-render loop for the sending transactions.
+  // const gasFeeParamsBySpeed:
+  //   | GasFeeParamsBySpeed
+  //   | GasFeeLegacyParamsBySpeed
+  //   | null = useMemo(() => {
+  //   const newGasFeeParamsBySpeed =
+  //     !isLoading &&
+  //     ((gasData as MeteorologyResponse)?.data?.currentBaseFee ||
+  //       (gasData as MeteorologyLegacyResponse)?.data?.legacy)
+  //       ? parseGasFeeParamsBySpeed({
+  //           chainId,
+  //           data: gasData as MeteorologyLegacyResponse | MeteorologyResponse,
+  //           gasLimit:
+  //             debouncedEstimatedGasLimit ||
+  //             getChainGasUnits(chainId).basic.tokenTransfer,
+  //           nativeAsset: nativeAsset as ParsedAsset,
+  //           currency: currentCurrency,
+  //           optimismL1SecurityFee,
+  //           flashbotsEnabled,
+  //           additionalTime,
+  //         })
+  //       : null;
+  //   if (
+  //     customGasModified &&
+  //     newGasFeeParamsBySpeed &&
+  //     prevChainId === chainId
+  //   ) {
+  //     newGasFeeParamsBySpeed.custom = storeGasFeeParamsBySpeed.custom;
+  //   }
+  //   return newGasFeeParamsBySpeed;
+  // }, [
+  //   isLoading,
+  //   gasData,
+  //   nativeAsset,
+  //   chainId,
+  //   debouncedEstimatedGasLimit,
+  //   currentCurrency,
+  //   optimismL1SecurityFee,
+  //   flashbotsEnabled,
+  //   additionalTime,
+  //   customGasModified,
+  //   prevChainId,
+  //   storeGasFeeParamsBySpeed.custom,
+  // ]);
+
   const gasFeeParamsBySpeed:
     | GasFeeParamsBySpeed
     | GasFeeLegacyParamsBySpeed
